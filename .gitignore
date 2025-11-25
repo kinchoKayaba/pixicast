@@ -1,0 +1,64 @@
+# --- General ---
+.DS_Store
+*.log
+
+# --- Editors ---
+.vscode/
+.idea/
+.cursor/
+
+# --- Node.js / Next.js (Frontend) ---
+node_modules/
+.next/
+out/
+build/
+dist/
+coverage/
+
+# Environment variables (絶対コミットしない！)
+.env
+.env*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Vercel
+.vercel
+
+# --- Go (Backend) ---
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Mac/Linux binary (Go build output usually has no extension)
+# 明示的に「main」やプロジェクト名を除外するか、binフォルダを作るのが一般的
+# ここではよくあるパターンを追加
+bin/
+main
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+
+# --- Buf / gRPC ---
+.buf/
+
+# --- Generated Code (Optional) ---
+# 自動生成コードをコミットしたくない場合は以下をコメントアウト解除してください。
+# 最初はコミットしてしまう（＝Git管理する）方がトラブルが少ないので、このままでOKです。
+# backend/gen/
+# frontend/src/gen/

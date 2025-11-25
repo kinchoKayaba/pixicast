@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package pixicast.v1;
+
+option go_package = "github.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1;pixicastv1";
+
+service TimelineService {
+  // ★ここを SayHello から GetTimeline に変更！
+  rpc GetTimeline (GetTimelineRequest) returns (GetTimelineResponse);
+}
+
+// リクエストの定義
+message GetTimelineRequest {
+  string date = 1; 
+}
+
+// レスポンスの定義
+message GetTimelineResponse {
+  repeated Program programs = 1;
+}
+
+// 番組データの定義
+message Program {
+  string id = 1;
+  string title = 2;
+  string start_at = 3;
+  string end_at = 4;
+  string platform_name = 5;
+  string image_url = 6;
+  string link_url = 7;
+  bool is_live = 8;
+}

@@ -1,0 +1,21 @@
+version: v1
+plugins:
+  # --- Backend (Go) ---
+  - plugin: go
+    out: backend/gen
+    opt: paths=source_relative
+  - plugin: connect-go
+    out: backend/gen
+    opt: paths=source_relative
+
+  # --- Frontend (TypeScript) ---
+  - plugin: es
+    out: frontend/src/gen
+    opt:
+      - target=ts
+      - import_extension=none # ★ここを追加！(拡張子なしにする)
+  - plugin: connect-es
+    out: frontend/src/gen
+    opt:
+      - target=ts
+      - import_extension=none # ★ここも追加！
