@@ -1,0 +1,10 @@
+version: "2"
+sql:
+  - schema: "sql/schema.sql" # さっき保存したテーブル定義
+    queries: "sql/query.sql" # これから作る「やりたい処理」
+    engine: "postgresql"
+    gen:
+      go:
+        package: "db" # Goのパッケージ名
+        out: "db" # backend/db フォルダに出力する
+        sql_package: "pgx/v5" # 高速ドライバ pgx を使う設定
