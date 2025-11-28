@@ -1,11 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // ... (webpackの設定はそのまま) ...
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // ブラウザ側バンドルで Node.js の fs モジュールを解決しようとした場合は
-      // 何もしないダミーとして扱う
-      config.resolve = config.resolve || {};
       config.resolve.fallback = {
         ...(config.resolve.fallback || {}),
         fs: false,
@@ -13,13 +11,16 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+
   async rewrites() {
+    // 環境変数があればそれを使い、なければlocalhostを使う
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:8080";
+
     return [
       {
-        // ブラウザからのリクエストパス
         source: "/pixicast.v1.TimelineService/:path*",
-        // Goサーバーへの転送先
-        destination: "http://localhost:8080/pixicast.v1.TimelineService/:path*",
+        // 変数を使って動的にする
+        destination: `${backendUrl}/pixicast.v1.TimelineService/:path*`,
       },
     ];
   },
