@@ -108,9 +108,15 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 
-	fmt.Println("Starting Pixicast Server (Timeline Mode) on localhost:8080 ...")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	addr := ":" + port
+
+	fmt.Printf("Starting Pixicast Server (Timeline Mode) on %s ...\n", addr)
 	err = http.ListenAndServe(
-		"localhost:8080",
+		addr,
 		h2c.NewHandler(mux, &http2.Server{}),
 	)
 	if err != nil {
