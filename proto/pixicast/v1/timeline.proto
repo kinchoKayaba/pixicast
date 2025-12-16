@@ -5,13 +5,14 @@ package pixicast.v1;
 option go_package = "github.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1;pixicastv1";
 
 service TimelineService {
-  // ★ここを SayHello から GetTimeline に変更！
   rpc GetTimeline (GetTimelineRequest) returns (GetTimelineResponse);
+  rpc SearchYouTubeLive (SearchYouTubeLiveRequest) returns (SearchYouTubeLiveResponse);
 }
 
 // リクエストの定義
 message GetTimelineRequest {
-  string date = 1; 
+  string date = 1;
+  repeated string youtube_channel_ids = 2; // YouTubeチャンネルIDのリスト
 }
 
 // レスポンスの定義
@@ -29,4 +30,27 @@ message Program {
   string image_url = 6;
   string link_url = 7;
   bool is_live = 8;
+  string channel_title = 9; // チャンネル名（YouTubeの場合）
+  string description = 10; // 説明文（YouTubeの場合）
+}
+
+// YouTubeライブ配信検索リクエスト
+message SearchYouTubeLiveRequest {
+  string query = 1; // 検索キーワード
+  int32 max_results = 2; // 最大取得件数（デフォルト10、最大50）
+}
+
+// YouTubeライブ配信検索レスポンス
+message SearchYouTubeLiveResponse {
+  repeated YouTubeLiveStream streams = 1;
+}
+
+// YouTubeライブ配信データ
+message YouTubeLiveStream {
+  string video_id = 1;
+  string title = 2;
+  string channel_title = 3;
+  string description = 4;
+  string thumbnail_url = 5;
+  string published_at = 6;
 }

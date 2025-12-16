@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetTimelineRequest, GetTimelineResponse } from "./timeline_pb";
+import { GetTimelineRequest, GetTimelineResponse, SearchYouTubeLiveRequest, SearchYouTubeLiveResponse } from "./timeline_pb";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -21,6 +21,15 @@ export const TimelineService = {
       name: "GetTimeline",
       I: GetTimelineRequest,
       O: GetTimelineResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc pixicast.v1.TimelineService.SearchYouTubeLive
+     */
+    searchYouTubeLive: {
+      name: "SearchYouTubeLive",
+      I: SearchYouTubeLiveRequest,
+      O: SearchYouTubeLiveResponse,
       kind: MethodKind.Unary,
     },
   }

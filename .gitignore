@@ -16,8 +16,7 @@ dist/
 coverage/
 
 # Environment variables (絶対コミットしない！)
-.env
-.env*.local
+.env.*
 
 # Debug logs
 npm-debug.log*

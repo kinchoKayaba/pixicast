@@ -17,6 +17,11 @@ export class GetTimelineRequest extends Message<GetTimelineRequest> {
    */
   date = "";
 
+  /**
+   * @generated from field: repeated string youtube_channel_ids = 2;
+   */
+  youtubeChannelIds: string[] = [];
+
   constructor(data?: PartialMessage<GetTimelineRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -26,6 +31,7 @@ export class GetTimelineRequest extends Message<GetTimelineRequest> {
   static readonly typeName = "pixicast.v1.GetTimelineRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "date", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "youtube_channel_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTimelineRequest {
@@ -130,6 +136,16 @@ export class Program extends Message<Program> {
    */
   isLive = false;
 
+  /**
+   * @generated from field: string channel_title = 9;
+   */
+  channelTitle = "";
+
+  /**
+   * @generated from field: string description = 10;
+   */
+  description = "";
+
   constructor(data?: PartialMessage<Program>) {
     super();
     proto3.util.initPartial(data, this);
@@ -146,6 +162,8 @@ export class Program extends Message<Program> {
     { no: 6, name: "image_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "link_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "is_live", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "channel_title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Program {
@@ -162,6 +180,159 @@ export class Program extends Message<Program> {
 
   static equals(a: Program | PlainMessage<Program> | undefined, b: Program | PlainMessage<Program> | undefined): boolean {
     return proto3.util.equals(Program, a, b);
+  }
+}
+
+/**
+ * YouTubeライブ配信検索リクエスト
+ *
+ * @generated from message pixicast.v1.SearchYouTubeLiveRequest
+ */
+export class SearchYouTubeLiveRequest extends Message<SearchYouTubeLiveRequest> {
+  /**
+   * @generated from field: string query = 1;
+   */
+  query = "";
+
+  /**
+   * @generated from field: int32 max_results = 2;
+   */
+  maxResults = 0;
+
+  constructor(data?: PartialMessage<SearchYouTubeLiveRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "pixicast.v1.SearchYouTubeLiveRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "query", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "max_results", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchYouTubeLiveRequest {
+    return new SearchYouTubeLiveRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchYouTubeLiveRequest {
+    return new SearchYouTubeLiveRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchYouTubeLiveRequest {
+    return new SearchYouTubeLiveRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SearchYouTubeLiveRequest | PlainMessage<SearchYouTubeLiveRequest> | undefined, b: SearchYouTubeLiveRequest | PlainMessage<SearchYouTubeLiveRequest> | undefined): boolean {
+    return proto3.util.equals(SearchYouTubeLiveRequest, a, b);
+  }
+}
+
+/**
+ * YouTubeライブ配信検索レスポンス
+ *
+ * @generated from message pixicast.v1.SearchYouTubeLiveResponse
+ */
+export class SearchYouTubeLiveResponse extends Message<SearchYouTubeLiveResponse> {
+  /**
+   * @generated from field: repeated pixicast.v1.YouTubeLiveStream streams = 1;
+   */
+  streams: YouTubeLiveStream[] = [];
+
+  constructor(data?: PartialMessage<SearchYouTubeLiveResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "pixicast.v1.SearchYouTubeLiveResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "streams", kind: "message", T: YouTubeLiveStream, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchYouTubeLiveResponse {
+    return new SearchYouTubeLiveResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchYouTubeLiveResponse {
+    return new SearchYouTubeLiveResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchYouTubeLiveResponse {
+    return new SearchYouTubeLiveResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SearchYouTubeLiveResponse | PlainMessage<SearchYouTubeLiveResponse> | undefined, b: SearchYouTubeLiveResponse | PlainMessage<SearchYouTubeLiveResponse> | undefined): boolean {
+    return proto3.util.equals(SearchYouTubeLiveResponse, a, b);
+  }
+}
+
+/**
+ * YouTubeライブ配信データ
+ *
+ * @generated from message pixicast.v1.YouTubeLiveStream
+ */
+export class YouTubeLiveStream extends Message<YouTubeLiveStream> {
+  /**
+   * @generated from field: string video_id = 1;
+   */
+  videoId = "";
+
+  /**
+   * @generated from field: string title = 2;
+   */
+  title = "";
+
+  /**
+   * @generated from field: string channel_title = 3;
+   */
+  channelTitle = "";
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
+  /**
+   * @generated from field: string thumbnail_url = 5;
+   */
+  thumbnailUrl = "";
+
+  /**
+   * @generated from field: string published_at = 6;
+   */
+  publishedAt = "";
+
+  constructor(data?: PartialMessage<YouTubeLiveStream>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "pixicast.v1.YouTubeLiveStream";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "video_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "channel_title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "thumbnail_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "published_at", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): YouTubeLiveStream {
+    return new YouTubeLiveStream().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): YouTubeLiveStream {
+    return new YouTubeLiveStream().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): YouTubeLiveStream {
+    return new YouTubeLiveStream().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: YouTubeLiveStream | PlainMessage<YouTubeLiveStream> | undefined, b: YouTubeLiveStream | PlainMessage<YouTubeLiveStream> | undefined): boolean {
+    return proto3.util.equals(YouTubeLiveStream, a, b);
   }
 }
 

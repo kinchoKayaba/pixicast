@@ -14,8 +14,11 @@ export default function Timeline() {
     const fetchData = async () => {
       try {
         // バックエンドの GetTimeline を呼ぶ
-        // 日付は一旦固定で送ります
-        const res = await client.getTimeline({ date: "2025-11-25" });
+        // YouTubeチャンネルIDも渡す（じゅんチャンネル）
+        const res = await client.getTimeline({
+          date: "2025-11-25",
+          youtubeChannelIds: ["UCx1nAvtVDIsaGmCMSe8ofsQ"], // じゅんチャンネルのID
+        });
         setPrograms(res.programs);
       } catch (error) {
         console.error("データ取得エラー:", error);

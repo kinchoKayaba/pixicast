@@ -1,0 +1,22 @@
+# 環境変数ファイル（セキュリティ上重要！）
+.env
+.env.*
+.env.dev
+.env.production
+.env.local
+
+# Git関連
+.git
+.gitignore
+
+# ドキュメント
+README.md
+*.md
+
+# テストファイル
+*_test.go
+
+# 一時ファイル
+*.tmp
+*.log
+

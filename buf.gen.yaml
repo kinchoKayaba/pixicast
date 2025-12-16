@@ -3,19 +3,24 @@ plugins:
   # --- Backend (Go) ---
   - plugin: go
     out: backend/gen
-    opt: paths=source_relative
+    opt:
+      - paths=import
+      - module=github.com/kinchoKayaba/pixicast/backend/gen
   - plugin: connect-go
     out: backend/gen
-    opt: paths=source_relative
+    opt:
+      - paths=import
+      - module=github.com/kinchoKayaba/pixicast/backend/gen
 
   # --- Frontend (TypeScript) ---
-  - plugin: es
-    out: frontend/src/gen
-    opt:
-      - target=ts
-      - import_extension=none # ★ここを追加！(拡張子なしにする)
-  - plugin: connect-es
-    out: frontend/src/gen
-    opt:
-      - target=ts
-      - import_extension=none # ★ここも追加！
+  # 一時的にコメントアウト（手動で更新）
+  # - plugin: es
+  #   out: frontend/src/gen
+  #   opt:
+  #     - target=ts
+  #     - import_extension=none
+  # - plugin: connect-es
+  #   out: frontend/src/gen
+  #   opt:
+  #     - target=ts
+  #     - import_extension=none

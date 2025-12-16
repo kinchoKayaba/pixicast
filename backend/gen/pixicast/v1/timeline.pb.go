@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        (unknown)
-// source: pixicast/v1/timeline.proto
+// source: proto/pixicast/v1/timeline.proto
 
 package pixicastv1
 
@@ -23,15 +23,16 @@ const (
 
 // リクエストの定義
 type GetTimelineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Date          string                 `protobuf:"bytes,1,opt,name=date,proto3" json:"date,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Date              string                 `protobuf:"bytes,1,opt,name=date,proto3" json:"date,omitempty"`
+	YoutubeChannelIds []string               `protobuf:"bytes,2,rep,name=youtube_channel_ids,json=youtubeChannelIds,proto3" json:"youtube_channel_ids,omitempty"` // YouTubeチャンネルIDのリスト
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetTimelineRequest) Reset() {
 	*x = GetTimelineRequest{}
-	mi := &file_pixicast_v1_timeline_proto_msgTypes[0]
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +44,7 @@ func (x *GetTimelineRequest) String() string {
 func (*GetTimelineRequest) ProtoMessage() {}
 
 func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_pixicast_v1_timeline_proto_msgTypes[0]
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +57,7 @@ func (x *GetTimelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTimelineRequest.ProtoReflect.Descriptor instead.
 func (*GetTimelineRequest) Descriptor() ([]byte, []int) {
-	return file_pixicast_v1_timeline_proto_rawDescGZIP(), []int{0}
+	return file_proto_pixicast_v1_timeline_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetTimelineRequest) GetDate() string {
@@ -64,6 +65,13 @@ func (x *GetTimelineRequest) GetDate() string {
 		return x.Date
 	}
 	return ""
+}
+
+func (x *GetTimelineRequest) GetYoutubeChannelIds() []string {
+	if x != nil {
+		return x.YoutubeChannelIds
+	}
+	return nil
 }
 
 // レスポンスの定義
@@ -76,7 +84,7 @@ type GetTimelineResponse struct {
 
 func (x *GetTimelineResponse) Reset() {
 	*x = GetTimelineResponse{}
-	mi := &file_pixicast_v1_timeline_proto_msgTypes[1]
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +96,7 @@ func (x *GetTimelineResponse) String() string {
 func (*GetTimelineResponse) ProtoMessage() {}
 
 func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_pixicast_v1_timeline_proto_msgTypes[1]
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +109,7 @@ func (x *GetTimelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTimelineResponse.ProtoReflect.Descriptor instead.
 func (*GetTimelineResponse) Descriptor() ([]byte, []int) {
-	return file_pixicast_v1_timeline_proto_rawDescGZIP(), []int{1}
+	return file_proto_pixicast_v1_timeline_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetTimelineResponse) GetPrograms() []*Program {
@@ -122,13 +130,15 @@ type Program struct {
 	ImageUrl      string                 `protobuf:"bytes,6,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
 	LinkUrl       string                 `protobuf:"bytes,7,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
 	IsLive        bool                   `protobuf:"varint,8,opt,name=is_live,json=isLive,proto3" json:"is_live,omitempty"`
+	ChannelTitle  string                 `protobuf:"bytes,9,opt,name=channel_title,json=channelTitle,proto3" json:"channel_title,omitempty"` // チャンネル名（YouTubeの場合）
+	Description   string                 `protobuf:"bytes,10,opt,name=description,proto3" json:"description,omitempty"`                      // 説明文（YouTubeの場合）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Program) Reset() {
 	*x = Program{}
-	mi := &file_pixicast_v1_timeline_proto_msgTypes[2]
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -140,7 +150,7 @@ func (x *Program) String() string {
 func (*Program) ProtoMessage() {}
 
 func (x *Program) ProtoReflect() protoreflect.Message {
-	mi := &file_pixicast_v1_timeline_proto_msgTypes[2]
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -153,7 +163,7 @@ func (x *Program) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Program.ProtoReflect.Descriptor instead.
 func (*Program) Descriptor() ([]byte, []int) {
-	return file_pixicast_v1_timeline_proto_rawDescGZIP(), []int{2}
+	return file_proto_pixicast_v1_timeline_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Program) GetId() string {
@@ -212,15 +222,213 @@ func (x *Program) GetIsLive() bool {
 	return false
 }
 
-var File_pixicast_v1_timeline_proto protoreflect.FileDescriptor
+func (x *Program) GetChannelTitle() string {
+	if x != nil {
+		return x.ChannelTitle
+	}
+	return ""
+}
 
-const file_pixicast_v1_timeline_proto_rawDesc = "" +
+func (x *Program) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+// YouTubeライブ配信検索リクエスト
+type SearchYouTubeLiveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`                              // 検索キーワード
+	MaxResults    int32                  `protobuf:"varint,2,opt,name=max_results,json=maxResults,proto3" json:"max_results,omitempty"` // 最大取得件数（デフォルト10、最大50）
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchYouTubeLiveRequest) Reset() {
+	*x = SearchYouTubeLiveRequest{}
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchYouTubeLiveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchYouTubeLiveRequest) ProtoMessage() {}
+
+func (x *SearchYouTubeLiveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchYouTubeLiveRequest.ProtoReflect.Descriptor instead.
+func (*SearchYouTubeLiveRequest) Descriptor() ([]byte, []int) {
+	return file_proto_pixicast_v1_timeline_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SearchYouTubeLiveRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchYouTubeLiveRequest) GetMaxResults() int32 {
+	if x != nil {
+		return x.MaxResults
+	}
+	return 0
+}
+
+// YouTubeライブ配信検索レスポンス
+type SearchYouTubeLiveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Streams       []*YouTubeLiveStream   `protobuf:"bytes,1,rep,name=streams,proto3" json:"streams,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchYouTubeLiveResponse) Reset() {
+	*x = SearchYouTubeLiveResponse{}
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchYouTubeLiveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchYouTubeLiveResponse) ProtoMessage() {}
+
+func (x *SearchYouTubeLiveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchYouTubeLiveResponse.ProtoReflect.Descriptor instead.
+func (*SearchYouTubeLiveResponse) Descriptor() ([]byte, []int) {
+	return file_proto_pixicast_v1_timeline_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SearchYouTubeLiveResponse) GetStreams() []*YouTubeLiveStream {
+	if x != nil {
+		return x.Streams
+	}
+	return nil
+}
+
+// YouTubeライブ配信データ
+type YouTubeLiveStream struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	VideoId       string                 `protobuf:"bytes,1,opt,name=video_id,json=videoId,proto3" json:"video_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	ChannelTitle  string                 `protobuf:"bytes,3,opt,name=channel_title,json=channelTitle,proto3" json:"channel_title,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	ThumbnailUrl  string                 `protobuf:"bytes,5,opt,name=thumbnail_url,json=thumbnailUrl,proto3" json:"thumbnail_url,omitempty"`
+	PublishedAt   string                 `protobuf:"bytes,6,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *YouTubeLiveStream) Reset() {
+	*x = YouTubeLiveStream{}
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *YouTubeLiveStream) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*YouTubeLiveStream) ProtoMessage() {}
+
+func (x *YouTubeLiveStream) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_pixicast_v1_timeline_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use YouTubeLiveStream.ProtoReflect.Descriptor instead.
+func (*YouTubeLiveStream) Descriptor() ([]byte, []int) {
+	return file_proto_pixicast_v1_timeline_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *YouTubeLiveStream) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+func (x *YouTubeLiveStream) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *YouTubeLiveStream) GetChannelTitle() string {
+	if x != nil {
+		return x.ChannelTitle
+	}
+	return ""
+}
+
+func (x *YouTubeLiveStream) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *YouTubeLiveStream) GetThumbnailUrl() string {
+	if x != nil {
+		return x.ThumbnailUrl
+	}
+	return ""
+}
+
+func (x *YouTubeLiveStream) GetPublishedAt() string {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return ""
+}
+
+var File_proto_pixicast_v1_timeline_proto protoreflect.FileDescriptor
+
+const file_proto_pixicast_v1_timeline_proto_rawDesc = "" +
 	"\n" +
-	"\x1apixicast/v1/timeline.proto\x12\vpixicast.v1\"(\n" +
+	" proto/pixicast/v1/timeline.proto\x12\vpixicast.v1\"X\n" +
 	"\x12GetTimelineRequest\x12\x12\n" +
-	"\x04date\x18\x01 \x01(\tR\x04date\"G\n" +
+	"\x04date\x18\x01 \x01(\tR\x04date\x12.\n" +
+	"\x13youtube_channel_ids\x18\x02 \x03(\tR\x11youtubeChannelIds\"G\n" +
 	"\x13GetTimelineResponse\x120\n" +
-	"\bprograms\x18\x01 \x03(\v2\x14.pixicast.v1.ProgramR\bprograms\"\xd7\x01\n" +
+	"\bprograms\x18\x01 \x03(\v2\x14.pixicast.v1.ProgramR\bprograms\"\x9e\x02\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x19\n" +
@@ -229,59 +437,82 @@ const file_pixicast_v1_timeline_proto_rawDesc = "" +
 	"\rplatform_name\x18\x05 \x01(\tR\fplatformName\x12\x1b\n" +
 	"\timage_url\x18\x06 \x01(\tR\bimageUrl\x12\x19\n" +
 	"\blink_url\x18\a \x01(\tR\alinkUrl\x12\x17\n" +
-	"\ais_live\x18\b \x01(\bR\x06isLive2c\n" +
+	"\ais_live\x18\b \x01(\bR\x06isLive\x12#\n" +
+	"\rchannel_title\x18\t \x01(\tR\fchannelTitle\x12 \n" +
+	"\vdescription\x18\n" +
+	" \x01(\tR\vdescription\"Q\n" +
+	"\x18SearchYouTubeLiveRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1f\n" +
+	"\vmax_results\x18\x02 \x01(\x05R\n" +
+	"maxResults\"U\n" +
+	"\x19SearchYouTubeLiveResponse\x128\n" +
+	"\astreams\x18\x01 \x03(\v2\x1e.pixicast.v1.YouTubeLiveStreamR\astreams\"\xd3\x01\n" +
+	"\x11YouTubeLiveStream\x12\x19\n" +
+	"\bvideo_id\x18\x01 \x01(\tR\avideoId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12#\n" +
+	"\rchannel_title\x18\x03 \x01(\tR\fchannelTitle\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12#\n" +
+	"\rthumbnail_url\x18\x05 \x01(\tR\fthumbnailUrl\x12!\n" +
+	"\fpublished_at\x18\x06 \x01(\tR\vpublishedAt2\xc7\x01\n" +
 	"\x0fTimelineService\x12P\n" +
-	"\vGetTimeline\x12\x1f.pixicast.v1.GetTimelineRequest\x1a .pixicast.v1.GetTimelineResponseBEZCgithub.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1;pixicastv1b\x06proto3"
+	"\vGetTimeline\x12\x1f.pixicast.v1.GetTimelineRequest\x1a .pixicast.v1.GetTimelineResponse\x12b\n" +
+	"\x11SearchYouTubeLive\x12%.pixicast.v1.SearchYouTubeLiveRequest\x1a&.pixicast.v1.SearchYouTubeLiveResponseBEZCgithub.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1;pixicastv1b\x06proto3"
 
 var (
-	file_pixicast_v1_timeline_proto_rawDescOnce sync.Once
-	file_pixicast_v1_timeline_proto_rawDescData []byte
+	file_proto_pixicast_v1_timeline_proto_rawDescOnce sync.Once
+	file_proto_pixicast_v1_timeline_proto_rawDescData []byte
 )
 
-func file_pixicast_v1_timeline_proto_rawDescGZIP() []byte {
-	file_pixicast_v1_timeline_proto_rawDescOnce.Do(func() {
-		file_pixicast_v1_timeline_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_pixicast_v1_timeline_proto_rawDesc), len(file_pixicast_v1_timeline_proto_rawDesc)))
+func file_proto_pixicast_v1_timeline_proto_rawDescGZIP() []byte {
+	file_proto_pixicast_v1_timeline_proto_rawDescOnce.Do(func() {
+		file_proto_pixicast_v1_timeline_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_pixicast_v1_timeline_proto_rawDesc), len(file_proto_pixicast_v1_timeline_proto_rawDesc)))
 	})
-	return file_pixicast_v1_timeline_proto_rawDescData
+	return file_proto_pixicast_v1_timeline_proto_rawDescData
 }
 
-var file_pixicast_v1_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_pixicast_v1_timeline_proto_goTypes = []any{
-	(*GetTimelineRequest)(nil),  // 0: pixicast.v1.GetTimelineRequest
-	(*GetTimelineResponse)(nil), // 1: pixicast.v1.GetTimelineResponse
-	(*Program)(nil),             // 2: pixicast.v1.Program
+var file_proto_pixicast_v1_timeline_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_pixicast_v1_timeline_proto_goTypes = []any{
+	(*GetTimelineRequest)(nil),        // 0: pixicast.v1.GetTimelineRequest
+	(*GetTimelineResponse)(nil),       // 1: pixicast.v1.GetTimelineResponse
+	(*Program)(nil),                   // 2: pixicast.v1.Program
+	(*SearchYouTubeLiveRequest)(nil),  // 3: pixicast.v1.SearchYouTubeLiveRequest
+	(*SearchYouTubeLiveResponse)(nil), // 4: pixicast.v1.SearchYouTubeLiveResponse
+	(*YouTubeLiveStream)(nil),         // 5: pixicast.v1.YouTubeLiveStream
 }
-var file_pixicast_v1_timeline_proto_depIdxs = []int32{
+var file_proto_pixicast_v1_timeline_proto_depIdxs = []int32{
 	2, // 0: pixicast.v1.GetTimelineResponse.programs:type_name -> pixicast.v1.Program
-	0, // 1: pixicast.v1.TimelineService.GetTimeline:input_type -> pixicast.v1.GetTimelineRequest
-	1, // 2: pixicast.v1.TimelineService.GetTimeline:output_type -> pixicast.v1.GetTimelineResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	5, // 1: pixicast.v1.SearchYouTubeLiveResponse.streams:type_name -> pixicast.v1.YouTubeLiveStream
+	0, // 2: pixicast.v1.TimelineService.GetTimeline:input_type -> pixicast.v1.GetTimelineRequest
+	3, // 3: pixicast.v1.TimelineService.SearchYouTubeLive:input_type -> pixicast.v1.SearchYouTubeLiveRequest
+	1, // 4: pixicast.v1.TimelineService.GetTimeline:output_type -> pixicast.v1.GetTimelineResponse
+	4, // 5: pixicast.v1.TimelineService.SearchYouTubeLive:output_type -> pixicast.v1.SearchYouTubeLiveResponse
+	4, // [4:6] is the sub-list for method output_type
+	2, // [2:4] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_pixicast_v1_timeline_proto_init() }
-func file_pixicast_v1_timeline_proto_init() {
-	if File_pixicast_v1_timeline_proto != nil {
+func init() { file_proto_pixicast_v1_timeline_proto_init() }
+func file_proto_pixicast_v1_timeline_proto_init() {
+	if File_proto_pixicast_v1_timeline_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pixicast_v1_timeline_proto_rawDesc), len(file_pixicast_v1_timeline_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_pixicast_v1_timeline_proto_rawDesc), len(file_proto_pixicast_v1_timeline_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_pixicast_v1_timeline_proto_goTypes,
-		DependencyIndexes: file_pixicast_v1_timeline_proto_depIdxs,
-		MessageInfos:      file_pixicast_v1_timeline_proto_msgTypes,
+		GoTypes:           file_proto_pixicast_v1_timeline_proto_goTypes,
+		DependencyIndexes: file_proto_pixicast_v1_timeline_proto_depIdxs,
+		MessageInfos:      file_proto_pixicast_v1_timeline_proto_msgTypes,
 	}.Build()
-	File_pixicast_v1_timeline_proto = out.File
-	file_pixicast_v1_timeline_proto_goTypes = nil
-	file_pixicast_v1_timeline_proto_depIdxs = nil
+	File_proto_pixicast_v1_timeline_proto = out.File
+	file_proto_pixicast_v1_timeline_proto_goTypes = nil
+	file_proto_pixicast_v1_timeline_proto_depIdxs = nil
 }
