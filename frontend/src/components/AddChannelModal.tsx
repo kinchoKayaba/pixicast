@@ -18,21 +18,28 @@ export default function AddChannelModal({
 }: AddChannelModalProps) {
   const [platform, setPlatform] = useState<Platform>("youtube");
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const { getIdToken } = useAuth();
+  const { user, loading: authLoading, getIdToken } = useAuth();
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+
+    // 認証チェック
+    if (!user) {
+      setError("ログインが必要です。しばらく待ってから再度お試しください。");
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const idToken = await getIdToken();
       if (!idToken) {
-        throw new Error("認証情報が取得できませんでした");
+        throw new Error("認証トークンの取得に失敗しました。ページを更新してください。");
       }
 
       const response = await fetch("http://localhost:8080/v1/subscriptions", {
@@ -65,7 +72,7 @@ export default function AddChannelModal({
         err instanceof Error ? err.message : "チャンネルの追加に失敗しました"
       );
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -108,6 +115,13 @@ export default function AddChannelModal({
 
         {/* フォーム */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* 認証中メッセージ */}
+          {authLoading && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+              🔐 認証中です。しばらくお待ちください...
+            </div>
+          )}
+
           {/* プラットフォーム選択 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -174,7 +188,7 @@ export default function AddChannelModal({
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
-              disabled={loading}
+              disabled={submitting || authLoading}
             />
           </div>
 
@@ -215,16 +229,16 @@ export default function AddChannelModal({
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              disabled={loading}
+              disabled={submitting}
             >
               キャンセル
             </button>
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-              disabled={loading || !input.trim()}
+              disabled={submitting || authLoading || !input.trim()}
             >
-              {loading ? "追加中..." : "追加"}
+              {authLoading ? "認証中..." : submitting ? "追加中..." : "追加"}
             </button>
           </div>
         </form>
