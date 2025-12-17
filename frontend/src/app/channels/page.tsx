@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import AddChannelModal from "@/components/AddChannelModal";
 
 interface Channel {
@@ -20,20 +21,49 @@ export default function ChannelsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
+  const { user, getIdToken } = useAuth();
 
   useEffect(() => {
     fetchChannels();
-  }, []);
+  }, [user]);
 
   const fetchChannels = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8080/v1/subscriptions");
-      if (!response.ok) throw new Error("Failed to fetch channels");
+      if (!user) {
+        console.log("⚠️ ChannelsPage: User not authenticated");
+        setChannels([]);
+        setLoading(false);
+        return;
+      }
+
+      const idToken = await getIdToken();
+      if (!idToken) {
+        console.error("❌ ChannelsPage: Failed to get ID token");
+        setChannels([]);
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch("http://localhost:8080/v1/subscriptions", {
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error("❌ ChannelsPage: API error:", response.status);
+        setChannels([]);
+        setLoading(false);
+        return;
+      }
+
       const data = await response.json();
+      console.log("✅ ChannelsPage: Channels loaded:", data.subscriptions?.length || 0);
       setChannels(data.subscriptions || []);
     } catch (error) {
-      console.error("チャンネル取得エラー:", error);
+      console.error("❌ ChannelsPage: チャンネル取得エラー:", error);
+      setChannels([]);
     } finally {
       setLoading(false);
     }
@@ -45,10 +75,20 @@ export default function ChannelsPage() {
     console.log("Deleting channel:", channelId);
 
     try {
+      const idToken = await getIdToken();
+      if (!idToken) {
+        console.error("❌ ChannelsPage: Failed to get ID token for delete");
+        alert("認証エラーが発生しました");
+        return;
+      }
+
       const response = await fetch(
         `http://localhost:8080/v1/subscriptions/${channelId}`,
         {
           method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
         }
       );
 
