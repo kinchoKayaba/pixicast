@@ -113,9 +113,9 @@ export default function ChannelsPage() {
             <p className="text-gray-500 mb-4">
               登録されているチャンネルがありません
             </p>
-            <a href="/" className="text-blue-600 hover:text-blue-700 underline">
-              ホームに戻ってチャンネルを追加
-            </a>
+            <p className="text-sm text-gray-400">
+              上の「+ チャンネルを追加」ボタンから登録できます
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
