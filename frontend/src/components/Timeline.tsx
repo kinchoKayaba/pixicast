@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { client } from "@/lib/client";
 // 生成された型定義をインポート
 import { Program } from "@/gen/proto/pixicast/v1/timeline_pb";
@@ -21,19 +22,50 @@ export default function Timeline() {
   const [selectedChannelName, setSelectedChannelName] = useState<string>("");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const { user, getIdToken } = useAuth();
 
   // データ取得関数（初回ロード用）
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      // 認証チェック
+      if (!user) {
+        console.log("⚠️ Timeline: User not authenticated");
+        setPrograms([]);
+        setGroupedPrograms({});
+        setLoading(false);
+        return;
+      }
+
+      const idToken = await getIdToken();
+      if (!idToken) {
+        console.error("❌ Timeline: Failed to get ID token");
+        setPrograms([]);
+        setGroupedPrograms({});
+        setLoading(false);
+        return;
+      }
+
       // 1. まず購読チャンネル一覧を取得
       const subscriptionsResponse = await fetch(
         "http://localhost:8080/v1/subscriptions",
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
       );
 
       if (!subscriptionsResponse.ok) {
-        throw new Error("Failed to fetch subscriptions");
+        console.error(
+          "❌ Timeline: Failed to fetch subscriptions:",
+          subscriptionsResponse.status
+        );
+        setPrograms([]);
+        setGroupedPrograms({});
+        setLoading(false);
+        return;
       }
 
       const subscriptionsData = await subscriptionsResponse.json();
@@ -92,26 +124,40 @@ export default function Timeline() {
       setHasMore(res.hasMore);
       setNextCursor(res.nextCursor);
     } catch (error) {
-      console.error("データ取得エラー:", error);
+      console.error("❌ Timeline: データ取得エラー:", error);
     } finally {
       setLoading(false);
     }
-  }, [selectedChannelId]);
+  }, [selectedChannelId, user, getIdToken]);
 
   // 追加データ取得関数（無限スクロール用）
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !nextCursor) return;
+    if (loadingMore || !hasMore || !nextCursor || !user) return;
 
     setLoadingMore(true);
     try {
+      const idToken = await getIdToken();
+      if (!idToken) {
+        console.error("❌ Timeline loadMore: Failed to get ID token");
+        setLoadingMore(false);
+        return;
+      }
+
       // チャンネルIDを取得
       const subscriptionsResponse = await fetch(
         "http://localhost:8080/v1/subscriptions",
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${idToken}`,
+          },
+        }
       );
 
       if (!subscriptionsResponse.ok) {
-        throw new Error("Failed to fetch subscriptions");
+        console.error("❌ Timeline loadMore: Failed to fetch subscriptions");
+        setLoadingMore(false);
+        return;
       }
 
       const subscriptionsData = await subscriptionsResponse.json();
@@ -160,11 +206,19 @@ export default function Timeline() {
       setHasMore(res.hasMore);
       setNextCursor(res.nextCursor);
     } catch (error) {
-      console.error("追加データ取得エラー:", error);
+      console.error("❌ Timeline: 追加データ取得エラー:", error);
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, nextCursor, programs, selectedChannelId]);
+  }, [
+    loadingMore,
+    hasMore,
+    nextCursor,
+    programs,
+    selectedChannelId,
+    user,
+    getIdToken,
+  ]);
 
   useEffect(() => {
     fetchData();

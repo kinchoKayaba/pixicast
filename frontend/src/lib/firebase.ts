@@ -11,6 +11,24 @@ const firebaseConfig = {
   measurementId: "G-CH3LBGKEZ2"
 };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+console.log("🔥 Firebase初期化開始");
+console.log("Firebase Config:", {
+  projectId: firebaseConfig.projectId,
+  authDomain: firebaseConfig.authDomain,
+});
+
+let app;
+let auth;
+
+try {
+  app = initializeApp(firebaseConfig);
+  console.log("✅ Firebase App初期化成功");
+  auth = getAuth(app);
+  console.log("✅ Firebase Auth初期化成功");
+} catch (error) {
+  console.error("❌ Firebase初期化エラー:", error);
+  throw error;
+}
+
+export { auth };
 

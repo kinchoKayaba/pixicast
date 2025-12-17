@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Channel {
   user_id: number;
@@ -25,24 +26,54 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedChannelId = searchParams.get("channel");
+  const { user, getIdToken } = useAuth();
 
   const fetchChannels = async () => {
     try {
+      // 認証されていない場合は空リスト
+      if (!user) {
+        console.log("⚠️ Sidebar: User not authenticated");
+        setChannels([]);
+        return;
+      }
+
+      const idToken = await getIdToken();
+      if (!idToken) {
+        console.error("❌ Sidebar: Failed to get ID token");
+        setChannels([]);
+        return;
+      }
+
+      console.log("🔍 Sidebar: Fetching channels for user:", user.uid);
       const response = await fetch("http://localhost:8080/v1/subscriptions", {
-        cache: "no-store", // キャッシュを無効化
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
       });
-      if (!response.ok) throw new Error("Failed to fetch channels");
+
+      if (!response.ok) {
+        console.error("❌ Sidebar: API error:", response.status);
+        setChannels([]);
+        return;
+      }
+
       const data = await response.json();
+      console.log(
+        "✅ Sidebar: Channels loaded:",
+        data.subscriptions?.length || 0
+      );
       setChannels(data.subscriptions || []);
     } catch (error) {
-      console.error("チャンネル取得エラー:", error);
+      console.error("❌ Sidebar: チャンネル取得エラー:", error);
+      setChannels([]);
     }
   };
 
-  // 初回マウント時とパス変更時にフェッチ
+  // userが変わったらチャンネルを再取得
   useEffect(() => {
     fetchChannels();
-  }, [pathname]);
+  }, [pathname, user]);
 
   return (
     <aside

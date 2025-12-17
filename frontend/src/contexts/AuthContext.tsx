@@ -34,21 +34,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("🔥 Firebase Auth 初期化開始");
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log("🔥 onAuthStateChanged triggered, user:", user?.uid || "null");
       if (user) {
+        console.log("✅ 既存ユーザー検出:", user.uid, "isAnonymous:", user.isAnonymous);
         setUser(user);
+        setLoading(false);
       } else {
+        console.log("⚠️ ユーザーなし、匿名ログイン開始...");
         try {
           const result = await signInAnonymously(auth);
+          console.log("✅ 匿名ログイン成功:", result.user.uid);
           setUser(result.user);
+          setLoading(false);
         } catch (error) {
-          console.error("匿名ログインエラー:", error);
+          console.error("❌ 匿名ログインエラー:", error);
+          console.error("Error details:", JSON.stringify(error, null, 2));
+          setLoading(false);
         }
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log("🔥 Firebase Auth クリーンアップ");
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
@@ -71,11 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getIdToken = async (): Promise<string | null> => {
-    if (!user) return null;
+    console.log("🎫 getIdToken called, user:", user?.uid || "null");
+    if (!user) {
+      console.error("❌ getIdToken: user is null");
+      return null;
+    }
     try {
-      return await user.getIdToken();
+      const token = await user.getIdToken();
+      console.log("✅ Token取得成功, length:", token?.length || 0);
+      return token;
     } catch (error) {
-      console.error("トークン取得エラー:", error);
+      console.error("❌ トークン取得エラー:", error);
       return null;
     }
   };
