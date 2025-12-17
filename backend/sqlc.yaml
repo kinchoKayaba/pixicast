@@ -1,10 +1,23 @@
 version: "2"
 sql:
-  - schema: "sql/schema.sql" # さっき保存したテーブル定義
-    queries: "sql/query.sql" # これから作る「やりたい処理」
+  - schema:
+      # マイグレーションファイルからスキーマを読み込む
+      - "sql/migrations/001_create_tables.sql"
+      - "sql/migrations/002_seed_platforms.sql"
+      - "sql/migrations/003_add_duration_to_events.sql"
+      - "sql/migrations/004_add_is_favorite.sql"
+      - "sql/migrations/005_create_users_and_plans.sql"
+    queries:
+      # クエリファイルを分割して管理
+      - "sql/queries/query_sources.sql"
+      - "sql/queries/query_subscriptions.sql"
+      - "sql/queries/query_timeline.sql"
+      - "sql/queries/query_users.sql"
     engine: "postgresql"
     gen:
       go:
         package: "db" # Goのパッケージ名
         out: "db" # backend/db フォルダに出力する
         sql_package: "pgx/v5" # 高速ドライバ pgx を使う設定
+        emit_json_tags: true # JSONタグを生成
+        emit_empty_slices: true # 空のスライスをnilではなく[]で返す

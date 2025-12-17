@@ -13,11 +13,15 @@ service TimelineService {
 message GetTimelineRequest {
   string date = 1;
   repeated string youtube_channel_ids = 2; // YouTubeチャンネルIDのリスト
+  string before_time = 3; // ページング用：この時刻より前のイベントを取得（RFC3339形式）
+  int32 limit = 4; // 取得件数（デフォルト50、最大100）
 }
 
 // レスポンスの定義
 message GetTimelineResponse {
   repeated Program programs = 1;
+  bool has_more = 2; // 次のページがあるかどうか
+  string next_cursor = 3; // 次のページ取得用のカーソル（最後のイベントの時刻）
 }
 
 // 番組データの定義
@@ -32,6 +36,10 @@ message Program {
   bool is_live = 8;
   string channel_title = 9; // チャンネル名（YouTubeの場合）
   string description = 10; // 説明文（YouTubeの場合）
+  string duration = 11; // 動画の長さ（例: "PT1H30M15S" または "01:30:15"）
+  string published_at = 12; // 公開日時
+  int64 view_count = 13; // 再生回数
+  string channel_thumbnail_url = 14; // チャンネルアイコンURL
 }
 
 // YouTubeライブ配信検索リクエスト

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createPromiseClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
-import { TimelineService } from "@/gen/pixicast/v1/timeline_connect";
+import { TimelineService } from "@/gen/proto/pixicast/v1/timeline_connect";
 
 const transport = createConnectTransport({
   baseUrl: "http://localhost:8080",

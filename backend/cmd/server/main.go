@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"sort"
+	"regexp"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"golang.org/x/net/http2"
@@ -19,6 +22,7 @@ import (
 	"github.com/kinchoKayaba/pixicast/backend/db" // ★sqlcが作ったコード
 	pixicastv1 "github.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1"
 	"github.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1/pixicastv1connect"
+	"github.com/kinchoKayaba/pixicast/backend/internal/http/handlers"
 	"github.com/kinchoKayaba/pixicast/backend/internal/youtube"
 )
 
@@ -29,104 +33,195 @@ type TimelineServer struct {
 	youtube *youtube.Client
 }
 
+// parseDuration は ISO 8601 duration (PT1H30M15S) を "01:30:15" 形式に変換
+func parseDuration(isoDuration string) string {
+	if isoDuration == "" {
+		return "00:00"
+	}
+
+	re := regexp.MustCompile(`PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?`)
+	matches := re.FindStringSubmatch(isoDuration)
+	if matches == nil {
+		return "00:00"
+	}
+
+	hours, _ := strconv.Atoi(matches[1])
+	minutes, _ := strconv.Atoi(matches[2])
+	seconds, _ := strconv.Atoi(matches[3])
+
+	if hours > 0 {
+		return fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+	}
+	return fmt.Sprintf("%02d:%02d", minutes, seconds)
+}
+
 // タイムライン取得
 func (s *TimelineServer) GetTimeline(
 	ctx context.Context,
 	req *connect.Request[pixicastv1.GetTimelineRequest],
 ) (*connect.Response[pixicastv1.GetTimelineResponse], error) {
-	log.Printf("GetTimeline called for date: %s, youtube_channel_ids: %v", req.Msg.Date, req.Msg.YoutubeChannelIds)
+	log.Printf("GetTimeline called for date: %s, youtube_channel_ids: %v, before_time: %s, limit: %d", 
+		req.Msg.Date, req.Msg.YoutubeChannelIds, req.Msg.BeforeTime, req.Msg.Limit)
 
-	// 1. DBからデータを取得 (SQL実行)
-	programsData, err := s.queries.ListPrograms(ctx)
+	// リクエストパラメータの処理
+	limit := int32(req.Msg.Limit)
+	if limit <= 0 {
+		limit = 50 // デフォルト50件
+	}
+	if limit > 100 {
+		limit = 100 // 最大100件
+	}
+
+	// before_timeの処理
+	var beforeTime pgtype.Timestamptz
+	if req.Msg.BeforeTime != "" {
+		t, err := time.Parse(time.RFC3339, req.Msg.BeforeTime)
+		if err != nil {
+			log.Printf("Failed to parse before_time: %v", err)
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid before_time format"))
+		}
+		beforeTime = pgtype.Timestamptz{Time: t, Valid: true}
+	} else {
+		beforeTime = pgtype.Timestamptz{Valid: false}
+	}
+
+	// 1. DBからデータを取得 (SQL実行) - 新スキーマのListTimelineを使用
+	// TODO: 認証実装後はリクエストからuser_idを取得
+	// limit+1件取得して、has_moreを判定
+	timelineData, err := s.queries.ListTimeline(ctx, db.ListTimelineParams{
+		UserID:  1, // 暫定: user_id=1 固定
+		Column2: beforeTime,
+		Limit:   limit + 1, // 1件多く取得してhas_moreを判定
+	})
 	if err != nil {
-		log.Printf("Failed to fetch programs: %v", err)
+		log.Printf("Failed to fetch timeline: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error"))
 	}
-	log.Printf("📊 DB programs fetched: %d", len(programsData))
+	log.Printf("📊 DB timeline events fetched: %d (requested: %d)", len(timelineData), limit)
 
-	// 2. DBの型(db.Program) を gRPCの型(pixicastv1.Program) に変換
-	var responsePrograms []*pixicastv1.Program
-	for _, p := range programsData {
-		// 放送中かどうかの簡易判定 (現在時刻が start と end の間なら true)
-		now := time.Now()
-		isLive := now.After(p.StartAt.Time) && now.Before(p.EndAt.Time)
-
-		// ImageUrlなどはNULL許容(pgtype.Text)なので、取り出し方に注意
-		imageUrl := ""
-		if p.ImageUrl.Valid {
-			imageUrl = p.ImageUrl.String
+	// 2. リクエストで指定されたチャンネルIDのマップを作成（フィルタリング用）
+	channelFilterMap := make(map[string]bool)
+	if len(req.Msg.YoutubeChannelIds) > 0 {
+		for _, channelID := range req.Msg.YoutubeChannelIds {
+			channelFilterMap[channelID] = true
 		}
-		linkUrl := ""
-		if p.LinkUrl.Valid {
-			linkUrl = p.LinkUrl.String
+	}
+
+	// 3. DBの型(db.ListTimelineRow) を gRPCの型(pixicastv1.Program) に変換
+	var responsePrograms []*pixicastv1.Program
+	for _, event := range timelineData {
+		// チャンネルIDでフィルタリング（指定がある場合のみ）
+		if len(channelFilterMap) > 0 {
+			// event.SourceExternalID（チャンネルID）がフィルタに含まれているか確認
+			if !channelFilterMap[event.SourceExternalID] {
+				continue // スキップ
+			}
+		}
+		// 放送中かどうかの簡易判定
+		now := time.Now()
+		isLive := event.Type == "live" && 
+			event.StartAt.Valid && 
+			now.After(event.StartAt.Time) &&
+			(!event.EndAt.Valid || now.Before(event.EndAt.Time))
+
+		// NULL許容フィールドの処理
+		imageUrl := ""
+		if event.ImageUrl.Valid {
+			imageUrl = event.ImageUrl.String
+		}
+		description := ""
+		if event.Description.Valid {
+			description = event.Description.String
+		}
+		channelTitle := ""
+		if event.SourceDisplayName.Valid {
+			channelTitle = event.SourceDisplayName.String
+		}
+		channelThumbnailUrl := ""
+		if event.SourceThumbnailUrl.Valid {
+			channelThumbnailUrl = event.SourceThumbnailUrl.String
+		}
+
+		// start_at または published_at を使用
+		startAt := ""
+		publishedAt := ""
+		if event.StartAt.Valid {
+			startAt = event.StartAt.Time.Format(time.RFC3339)
+		} else if event.PublishedAt.Valid {
+			startAt = event.PublishedAt.Time.Format(time.RFC3339)
+			publishedAt = event.PublishedAt.Time.Format(time.RFC3339)
+		}
+
+		endAt := ""
+		if event.EndAt.Valid {
+			endAt = event.EndAt.Time.Format(time.RFC3339)
+		} else if event.PublishedAt.Valid {
+			endAt = event.PublishedAt.Time.Format(time.RFC3339)
+		}
+
+		// metricsから再生回数を取得
+		viewCount := int64(0)
+		if len(event.Metrics) > 0 {
+			var metricsData map[string]interface{}
+			if err := json.Unmarshal(event.Metrics, &metricsData); err == nil {
+				if views, ok := metricsData["views"].(float64); ok {
+					viewCount = int64(views)
+				}
+			}
+		}
+
+		// durationの取得
+		duration := ""
+		if event.Duration.Valid {
+			duration = event.Duration.String
 		}
 
 		responsePrograms = append(responsePrograms, &pixicastv1.Program{
-			Id:           p.ID.String(), // UUIDを文字列に
-			Title:        p.Title,
-			StartAt:      p.StartAt.Time.Format(time.RFC3339), // 時間を文字列に
-			EndAt:        p.EndAt.Time.Format(time.RFC3339),
-			PlatformName: p.PlatformName,
-			ImageUrl:     imageUrl,
-			LinkUrl:      linkUrl,
-			IsLive:       isLive,
+			Id:                  event.ID.String(),
+			Title:               event.Title,
+			StartAt:             startAt,
+			EndAt:               endAt,
+			PlatformName:        event.PlatformID,
+			ImageUrl:            imageUrl,
+			LinkUrl:             event.Url,
+			IsLive:              isLive,
+			ChannelTitle:        channelTitle,
+			Description:         description,
+			Duration:            duration,
+			PublishedAt:         publishedAt,
+			ViewCount:           viewCount,
+			ChannelThumbnailUrl: channelThumbnailUrl,
 		})
 	}
 
-	// 3. YouTubeチャンネルからデータを取得
-	for _, channelID := range req.Msg.YoutubeChannelIds {
-		videos, err := s.youtube.GetChannelVideos(ctx, channelID, 20)
-		if err != nil {
-			log.Printf("Failed to get YouTube videos for channel %s: %v", channelID, err)
-			continue // エラーでも他のチャンネルは続行
-		}
-		log.Printf("📺 YouTube videos fetched from channel %s: %d", channelID, len(videos))
-
-		for _, video := range videos {
-			thumbnailUrl := ""
-			if video.Snippet.Thumbnails != nil && video.Snippet.Thumbnails.High != nil {
-				thumbnailUrl = video.Snippet.Thumbnails.High.Url
-			}
-
-			// published_atをパース
-			publishedAt, err := time.Parse(time.RFC3339, video.Snippet.PublishedAt)
-			if err != nil {
-				log.Printf("Failed to parse published_at: %v", err)
-				publishedAt = time.Now()
-			}
-
-			responsePrograms = append(responsePrograms, &pixicastv1.Program{
-				Id:           video.Id.VideoId,
-				Title:        video.Snippet.Title,
-				StartAt:      publishedAt.Format(time.RFC3339),
-				EndAt:        publishedAt.Format(time.RFC3339), // YouTubeは同じ値
-				PlatformName: "YouTube",
-				ImageUrl:     thumbnailUrl,
-				LinkUrl:      fmt.Sprintf("https://www.youtube.com/watch?v=%s", video.Id.VideoId),
-				IsLive:       video.Snippet.LiveBroadcastContent == "live",
-				ChannelTitle: video.Snippet.ChannelTitle,
-				Description:  video.Snippet.Description,
-			})
+	// has_moreとnext_cursorの設定
+	hasMore := false
+	nextCursor := ""
+	
+	// limit+1件取得した場合、最後の1件を除いてhas_more=trueに設定
+	if int32(len(responsePrograms)) > limit {
+		hasMore = true
+		responsePrograms = responsePrograms[:limit] // 最後の1件を除く
+		
+		// 最後のプログラムの時刻をnext_cursorとして設定
+		lastProgram := responsePrograms[len(responsePrograms)-1]
+		if lastProgram.PublishedAt != "" {
+			nextCursor = lastProgram.PublishedAt
+		} else {
+			nextCursor = lastProgram.StartAt
 		}
 	}
 
-	// 4. 全てのプログラムを時系列順（新しい順）にソート
-	sort.Slice(responsePrograms, func(i, j int) bool {
-		timeI, errI := time.Parse(time.RFC3339, responsePrograms[i].StartAt)
-		timeJ, errJ := time.Parse(time.RFC3339, responsePrograms[j].StartAt)
-		if errI != nil || errJ != nil {
-			return false
-		}
-		// 降順（新しい順）
-		return timeI.After(timeJ)
-	})
+	log.Printf("📤 Returning %d programs, has_more: %v", len(responsePrograms), hasMore)
 
+	// レスポンスを返す（DBクエリで既にソート済み）
 	return connect.NewResponse(&pixicastv1.GetTimelineResponse{
-		Programs: responsePrograms,
+		Programs:   responsePrograms,
+		HasMore:    hasMore,
+		NextCursor: nextCursor,
 	}), nil
 }
 
-// YouTubeライブ配信検索
 func (s *TimelineServer) SearchYouTubeLive(
 	ctx context.Context,
 	req *connect.Request[pixicastv1.SearchYouTubeLiveRequest],
@@ -246,8 +341,45 @@ func main() {
 		})
 	}
 	
+	// Subscription ハンドラを作成
+	subscriptionHandler := handlers.NewSubscriptionHandler(queries, youtubeClient)
+	
 	mux := http.NewServeMux()
 	mux.Handle(path, corsHandler(handler))
+	
+	// REST APIエンドポイント
+	mux.HandleFunc("/v1/subscriptions", func(w http.ResponseWriter, r *http.Request) {
+		// CORS処理
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		if r.Method == "GET" {
+			subscriptionHandler.ListSubscriptions(w, r)
+			return
+		}
+		
+		if r.Method == "POST" {
+			subscriptionHandler.CreateSubscription(w, r)
+			return
+		}
+		
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+	
+	// DELETE /v1/subscriptions/{channelId}
+	mux.HandleFunc("/v1/subscriptions/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "DELETE" || r.Method == "OPTIONS" {
+			subscriptionHandler.DeleteSubscription(w, r)
+			return
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {

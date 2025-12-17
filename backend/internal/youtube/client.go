@@ -46,7 +46,7 @@ func (c *Client) SearchLiveStreams(ctx context.Context, query string, maxResults
 
 // GetVideoDetails は動画の詳細情報を取得
 func (c *Client) GetVideoDetails(ctx context.Context, videoID string) (*youtube.Video, error) {
-	call := c.service.Videos.List([]string{"snippet", "liveStreamingDetails", "statistics"})
+	call := c.service.Videos.List([]string{"snippet", "liveStreamingDetails", "statistics", "contentDetails"})
 	call = call.Id(videoID)
 
 	response, err := call.Do()
@@ -59,6 +59,37 @@ func (c *Client) GetVideoDetails(ctx context.Context, videoID string) (*youtube.
 	}
 
 	return response.Items[0], nil
+}
+
+// GetVideosDetails は複数の動画の詳細情報をバッチで取得
+func (c *Client) GetVideosDetails(ctx context.Context, videoIDs []string) ([]*youtube.Video, error) {
+	if len(videoIDs) == 0 {
+		return []*youtube.Video{}, nil
+	}
+
+	// YouTube APIは最大50件までバッチ取得可能
+	const batchSize = 50
+	var allVideos []*youtube.Video
+
+	for i := 0; i < len(videoIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(videoIDs) {
+			end = len(videoIDs)
+		}
+		batch := videoIDs[i:end]
+
+		call := c.service.Videos.List([]string{"snippet", "contentDetails", "liveStreamingDetails", "statistics"})
+		call = call.Id(batch...)
+
+		response, err := call.Do()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get videos details: %v", err)
+		}
+
+		allVideos = append(allVideos, response.Items...)
+	}
+
+	return allVideos, nil
 }
 
 // GetChannelInfo はチャンネル情報を取得
@@ -97,6 +128,11 @@ func (c *Client) SearchUpcomingStreams(ctx context.Context, query string, maxRes
 // GetChannelVideos はチャンネルの最新動画を取得
 // PlaylistItems APIを使用してチャンネルのアップロード動画を正確に取得
 func (c *Client) GetChannelVideos(ctx context.Context, channelID string, maxResults int64) ([]*youtube.SearchResult, error) {
+	return c.GetChannelVideosSince(ctx, channelID, maxResults, "")
+}
+
+// GetChannelVideosSince は指定日時以降のチャンネル動画を全て取得（ページング対応）
+func (c *Client) GetChannelVideosSince(ctx context.Context, channelID string, maxResults int64, publishedAfter string) ([]*youtube.SearchResult, error) {
 	// 1. チャンネル情報を取得して、uploadsプレイリストIDを取得
 	channelCall := c.service.Channels.List([]string{"contentDetails"})
 	channelCall = channelCall.Id(channelID)
@@ -113,37 +149,139 @@ func (c *Client) GetChannelVideos(ctx context.Context, channelID string, maxResu
 	// uploadsプレイリストID（UUから始まる）
 	uploadsPlaylistID := channelResponse.Items[0].ContentDetails.RelatedPlaylists.Uploads
 	
-	// 2. プレイリストから動画を取得
-	playlistCall := c.service.PlaylistItems.List([]string{"snippet", "contentDetails"})
-	playlistCall = playlistCall.PlaylistId(uploadsPlaylistID)
-	playlistCall = playlistCall.MaxResults(maxResults)
+	// 2. プレイリストから動画を取得（ページング対応）
+	var allResults []*youtube.SearchResult
+	pageToken := ""
 	
-	playlistResponse, err := playlistCall.Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get playlist items: %v", err)
-	}
-	
-	// PlaylistItemをSearchResult形式に変換
-	var results []*youtube.SearchResult
-	for _, item := range playlistResponse.Items {
-		result := &youtube.SearchResult{
-			Id: &youtube.ResourceId{
-				Kind:    "youtube#video",
-				VideoId: item.ContentDetails.VideoId,
-			},
-			Snippet: &youtube.SearchResultSnippet{
-				ChannelId:            item.Snippet.ChannelId,
-				ChannelTitle:         item.Snippet.ChannelTitle,
-				Description:          item.Snippet.Description,
-				LiveBroadcastContent: "none", // PlaylistItemには含まれないのでデフォルト値
-				PublishedAt:          item.Snippet.PublishedAt,
-				Thumbnails:           item.Snippet.Thumbnails,
-				Title:                item.Snippet.Title,
-			},
+	for {
+		playlistCall := c.service.PlaylistItems.List([]string{"snippet", "contentDetails"})
+		playlistCall = playlistCall.PlaylistId(uploadsPlaylistID)
+		playlistCall = playlistCall.MaxResults(50) // API最大値
+		
+		if pageToken != "" {
+			playlistCall = playlistCall.PageToken(pageToken)
 		}
-		results = append(results, result)
+		
+		playlistResponse, err := playlistCall.Do()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get playlist items: %v", err)
+		}
+		
+		// PlaylistItemをSearchResult形式に変換
+		for _, item := range playlistResponse.Items {
+			// publishedAfter フィルタリング
+			if publishedAfter != "" && item.Snippet.PublishedAt < publishedAfter {
+				// これ以降は全て古い動画なので終了
+				return allResults, nil
+			}
+			
+			result := &youtube.SearchResult{
+				Id: &youtube.ResourceId{
+					Kind:    "youtube#video",
+					VideoId: item.ContentDetails.VideoId,
+				},
+				Snippet: &youtube.SearchResultSnippet{
+					ChannelId:            item.Snippet.ChannelId,
+					ChannelTitle:         item.Snippet.ChannelTitle,
+					Description:          item.Snippet.Description,
+					LiveBroadcastContent: "none", // PlaylistItemには含まれないのでデフォルト値
+					PublishedAt:          item.Snippet.PublishedAt,
+					Thumbnails:           item.Snippet.Thumbnails,
+					Title:                item.Snippet.Title,
+				},
+			}
+			allResults = append(allResults, result)
+		}
+		
+		// maxResults制限チェック
+		if maxResults > 0 && int64(len(allResults)) >= maxResults {
+			return allResults[:maxResults], nil
+		}
+		
+		// 次のページがあるか確認
+		if playlistResponse.NextPageToken == "" {
+			break
+		}
+		pageToken = playlistResponse.NextPageToken
 	}
 	
-	return results, nil
+	return allResults, nil
+}
+
+// ChannelDetails はチャンネルの詳細情報
+type ChannelDetails struct {
+	ChannelID         string
+	Handle            string
+	DisplayName       string
+	ThumbnailURL      string
+	UploadsPlaylistID string
+}
+
+// ResolveHandle は @handle からチャンネルIDを解決
+// handle は "@junchannel" の形式（先頭の@は含まない）
+func (c *Client) ResolveHandle(ctx context.Context, handle string) (string, error) {
+	// Search APIでチャンネルを検索
+	// 注: YouTube Data API v3には直接handle→channelIDの変換APIがないため、
+	// forHandle または forUsername パラメータを使う
+	call := c.service.Channels.List([]string{"id"})
+	call = call.ForHandle(handle)
+	
+	response, err := call.Do()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve handle: %v", err)
+	}
+	
+	if len(response.Items) == 0 {
+		return "", fmt.Errorf("channel not found for handle: @%s", handle)
+	}
+	
+	return response.Items[0].Id, nil
+}
+
+// GetChannelDetails はチャンネルの詳細情報を取得
+// channelID は UCxxx... の形式
+func (c *Client) GetChannelDetails(ctx context.Context, channelID string) (*ChannelDetails, error) {
+	call := c.service.Channels.List([]string{"id", "snippet", "contentDetails"})
+	call = call.Id(channelID)
+	
+	response, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get channel details: %v", err)
+	}
+	
+	if len(response.Items) == 0 {
+		return nil, fmt.Errorf("channel not found: %s", channelID)
+	}
+	
+	channel := response.Items[0]
+	
+	// サムネイルURL取得（優先順位: high > medium > default）
+	thumbnailURL := ""
+	if channel.Snippet.Thumbnails != nil {
+		if channel.Snippet.Thumbnails.High != nil {
+			thumbnailURL = channel.Snippet.Thumbnails.High.Url
+		} else if channel.Snippet.Thumbnails.Medium != nil {
+			thumbnailURL = channel.Snippet.Thumbnails.Medium.Url
+		} else if channel.Snippet.Thumbnails.Default != nil {
+			thumbnailURL = channel.Snippet.Thumbnails.Default.Url
+		}
+	}
+	
+	// CustomUrl が @handle の形式の場合がある（@を除去）
+	handle := ""
+	if channel.Snippet.CustomUrl != "" {
+		handle = channel.Snippet.CustomUrl
+		if len(handle) > 0 && handle[0] == '@' {
+			handle = handle[1:]
+		}
+	}
+	
+	return &ChannelDetails{
+		ChannelID:         channel.Id,
+		Handle:            handle,
+		DisplayName:       channel.Snippet.Title,
+		ThumbnailURL:      thumbnailURL,
+		UploadsPlaylistID: channel.ContentDetails.RelatedPlaylists.Uploads,
+	}, nil
 }
 

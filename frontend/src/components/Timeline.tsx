@@ -1,114 +1,354 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { client } from "@/lib/client";
 // 生成された型定義をインポート
-import { Program } from "@/gen/pixicast/v1/timeline_pb";
+import { Program } from "@/gen/proto/pixicast/v1/timeline_pb";
 
 export default function Timeline() {
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [groupedPrograms, setGroupedPrograms] = useState<
+    Record<string, Program[]>
+  >({});
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const searchParams = useSearchParams();
+  const selectedChannelId = searchParams.get("channel");
+  const [selectedChannelName, setSelectedChannelName] = useState<string>("");
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // データ取得関数（初回ロード用）
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1. まず購読チャンネル一覧を取得
+      const subscriptionsResponse = await fetch(
+        "http://localhost:8080/v1/subscriptions",
+        { cache: "no-store" }
+      );
+
+      if (!subscriptionsResponse.ok) {
+        throw new Error("Failed to fetch subscriptions");
+      }
+
+      const subscriptionsData = await subscriptionsResponse.json();
+      let channelIds =
+        subscriptionsData.subscriptions?.map(
+          (sub: { channel_id: string }) => sub.channel_id
+        ) || [];
+
+      // Filter by selectedChannelId if present
+      if (selectedChannelId) {
+        channelIds = [selectedChannelId];
+        const foundChannel = subscriptionsData.subscriptions?.find(
+          (sub: { channel_id: string }) => sub.channel_id === selectedChannelId
+        );
+        setSelectedChannelName(foundChannel?.display_name || "");
+      } else {
+        setSelectedChannelName("");
+      }
+
+      console.log("📺 表示チャンネル:", channelIds);
+
+      // 2. タイムラインを取得（初回は50件）
+      const today = new Date();
+      const dateStr = today.toISOString().split("T")[0];
+
+      const res = await client.getTimeline({
+        date: dateStr,
+        youtubeChannelIds: channelIds,
+        beforeTime: "",
+        limit: 50,
+      });
+
+      // 最新順にソート
+      const sortedPrograms = [...res.programs].sort((a, b) => {
+        const timeA = new Date(a.startAt || a.publishedAt || 0).getTime();
+        const timeB = new Date(b.startAt || b.publishedAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      // 日付でグループ化
+      const groupedByDate = sortedPrograms.reduce((groups, program) => {
+        const date = new Date(program.startAt);
+        const dateKey = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        if (!groups[dateKey]) {
+          groups[dateKey] = [];
+        }
+        groups[dateKey].push(program);
+        return groups;
+      }, {} as Record<string, Program[]>);
+
+      setPrograms(sortedPrograms);
+      setGroupedPrograms(groupedByDate);
+      setCurrentDate(today);
+      setHasMore(res.hasMore);
+      setNextCursor(res.nextCursor);
+    } catch (error) {
+      console.error("データ取得エラー:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedChannelId]);
+
+  // 追加データ取得関数（無限スクロール用）
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !nextCursor) return;
+
+    setLoadingMore(true);
+    try {
+      // チャンネルIDを取得
+      const subscriptionsResponse = await fetch(
+        "http://localhost:8080/v1/subscriptions",
+        { cache: "no-store" }
+      );
+
+      if (!subscriptionsResponse.ok) {
+        throw new Error("Failed to fetch subscriptions");
+      }
+
+      const subscriptionsData = await subscriptionsResponse.json();
+      let channelIds =
+        subscriptionsData.subscriptions?.map(
+          (sub: { channel_id: string }) => sub.channel_id
+        ) || [];
+
+      if (selectedChannelId) {
+        channelIds = [selectedChannelId];
+      }
+
+      const today = new Date();
+      const dateStr = today.toISOString().split("T")[0];
+
+      const res = await client.getTimeline({
+        date: dateStr,
+        youtubeChannelIds: channelIds,
+        beforeTime: nextCursor,
+        limit: 50,
+      });
+
+      // 既存のプログラムに追加
+      const newPrograms = [...programs, ...res.programs];
+      const sortedPrograms = newPrograms.sort((a, b) => {
+        const timeA = new Date(a.startAt || a.publishedAt || 0).getTime();
+        const timeB = new Date(b.startAt || b.publishedAt || 0).getTime();
+        return timeB - timeA;
+      });
+
+      // 日付でグループ化
+      const groupedByDate = sortedPrograms.reduce((groups, program) => {
+        const date = new Date(program.startAt);
+        const dateKey = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        if (!groups[dateKey]) {
+          groups[dateKey] = [];
+        }
+        groups[dateKey].push(program);
+        return groups;
+      }, {} as Record<string, Program[]>);
+
+      setPrograms(sortedPrograms);
+      setGroupedPrograms(groupedByDate);
+      setHasMore(res.hasMore);
+      setNextCursor(res.nextCursor);
+    } catch (error) {
+      console.error("追加データ取得エラー:", error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, nextCursor, programs, selectedChannelId]);
 
   useEffect(() => {
-    // データ取得関数
-    const fetchData = async () => {
-      try {
-        // バックエンドの GetTimeline を呼ぶ
-        // YouTubeチャンネルIDも渡す（じゅんチャンネル）
-        const res = await client.getTimeline({
-          date: "2025-11-25",
-          youtubeChannelIds: ["UCx1nAvtVDIsaGmCMSe8ofsQ"], // じゅんチャンネルのID
-        });
-        setPrograms(res.programs);
-      } catch (error) {
-        console.error("データ取得エラー:", error);
-      } finally {
-        setLoading(false);
+    fetchData();
+  }, [fetchData]);
+
+  // Intersection Observer の設定
+  useEffect(() => {
+    if (loadMoreRef.current) {
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && hasMore && !loadingMore) {
+            loadMore();
+          }
+        },
+        { threshold: 0.1 }
+      );
+
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
       }
     };
+  }, [hasMore, loadingMore, loadMore]);
 
-    fetchData();
-  }, []);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-pink-50 flex items-center justify-center">
+        <p className="text-gray-500">読み込み中...</p>
+      </div>
+    );
+  }
 
   return (
-    <main className="min-h-screen bg-pink-50 text-gray-800 p-4 pb-20">
-      {/* ヘッダー */}
+    <div className="min-h-screen bg-pink-50 text-gray-800 p-8 pt-20">
       <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-700">ホーム</h1>
-        <div className="text-gray-500">🔍</div>
+        {selectedChannelName ? (
+          <div className="flex items-center gap-3">
+            <div className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-bold text-sm">
+              YouTube
+            </div>
+            <h1 className="text-2xl font-bold text-gray-700">
+              {selectedChannelName}
+            </h1>
+          </div>
+        ) : (
+          <h1 className="text-2xl font-bold text-gray-700">ホーム</h1>
+        )}
       </header>
 
-      {/* 日付表示エリア */}
-      <div className="flex mb-4 text-sm font-medium text-gray-500">
-        <div className="mr-4 flex flex-col items-center">
-          <span className="font-bold text-gray-800">11/25</span>
-          <span>(月)</span>
-        </div>
+      <div className="space-y-8">
+        {Object.entries(groupedPrograms).map(([dateKey, dayPrograms]) => {
+          const [year, month, day] = dateKey.split("-");
+          const date = new Date(
+            parseInt(year),
+            parseInt(month) - 1,
+            parseInt(day)
+          );
+          const dayOfWeek = ["日", "月", "火", "水", "木", "金", "土"][
+            date.getDay()
+          ];
 
-        <div className="border-l-2 border-gray-300 pl-4 flex-1">
-          {/* ローディング表示 */}
-          {loading && <p className="text-sm text-gray-400">読み込み中...</p>}
-
-          {/* 番組リスト */}
-          <div className="space-y-4">
-            {programs.map((program) => (
-              <div
-                key={program.id}
-                className="bg-white rounded-xl shadow-sm overflow-hidden flex relative h-28"
-              >
-                {/* 左側の色付きバー (放送中なら赤、それ以外は青) */}
-                <div
-                  className={`w-2 h-full absolute left-0 top-0 ${
-                    program.isLive ? "bg-rose-500" : "bg-blue-500"
-                  }`}
-                />
-
-                {/* 真ん中の情報エリア */}
-                <div className="p-3 pl-5 flex-1 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start">
-                      <h2 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight">
-                        {program.title}
-                      </h2>
-                      <button className="text-gray-300 hover:text-yellow-400">
-                        ★
-                      </button>
-                    </div>
-                    {program.isLive && (
-                      <span className="inline-block bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded mt-1">
-                        放送中
-                      </span>
-                    )}
+          return (
+            <div key={dateKey} className="space-y-4">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-gray-800">
+                    {month}/{day}
                   </div>
-
-                  <div className="flex items-center text-xs text-gray-500 mt-2">
-                    {/* 時間の表示 (Tで区切って時間だけ出す) */}
-                    <span className="mr-2 font-mono">
-                      ⏱{" "}
-                      {program.startAt.includes("T")
-                        ? program.startAt.split("T")[1].slice(0, 5)
-                        : program.startAt}
-                    </span>
-                    <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">
-                      {program.platformName}
-                    </span>
-                  </div>
+                  <div className="text-sm text-gray-500">({dayOfWeek})</div>
                 </div>
-
-                {/* 右側のサムネイル画像 */}
-                <div className="w-28 bg-gray-200 relative shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={program.imageUrl || "https://placehold.jp/150x150.png"}
-                    alt={program.title}
-                    className="object-cover w-full h-full"
-                  />
-                </div>
+                <div className="flex-1 border-t border-gray-300"></div>
               </div>
-            ))}
-          </div>
-        </div>
+
+              {dayPrograms.map((program) => {
+                const programDate = new Date(program.startAt);
+                const hours = programDate.getHours();
+                const minutes = programDate.getMinutes();
+                const timeStr = `${hours.toString().padStart(2, "0")}:${minutes
+                  .toString()
+                  .padStart(2, "0")}`;
+
+                return (
+                  <div key={program.id} className="flex text-sm">
+                    <div className="w-20 text-right pr-4 text-gray-600">
+                      {timeStr}
+                    </div>
+
+                    <div className="border-l-2 border-gray-300 pl-4 flex-1">
+                      <a
+                        href={program.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-white rounded-xl shadow-sm overflow-hidden flex relative hover:shadow-md transition-shadow cursor-pointer"
+                      >
+                        <div className="w-2 h-full absolute left-0 top-0 bg-red-600" />
+
+                        <div className="p-3 pl-5 flex-1 flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <h2 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight">
+                                {program.title}
+                              </h2>
+                              <button
+                                className="text-gray-300 hover:text-yellow-400 z-10"
+                                onClick={(e) => e.preventDefault()}
+                              >
+                                ★
+                              </button>
+                            </div>
+                            {program.isLive && (
+                              <span className="inline-block bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded mt-1">
+                                放送中
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center text-xs text-gray-500 mt-2 space-x-2 flex-wrap">
+                            <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">
+                              {program.platformName}
+                            </span>
+                            {program.channelThumbnailUrl && (
+                              <img
+                                src={program.channelThumbnailUrl}
+                                alt={program.channelTitle}
+                                className="w-5 h-5 rounded-full"
+                              />
+                            )}
+                            <span className="text-gray-700 font-medium">
+                              {program.channelTitle}
+                            </span>
+                            {program.duration && (
+                              <span className="font-mono">
+                                ⏱ {program.duration}
+                              </span>
+                            )}
+                            {program.viewCount > 0 && (
+                              <span className="font-mono">
+                                👁 {program.viewCount.toLocaleString()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="w-48 bg-gray-200 relative shrink-0 aspect-video">
+                          <img
+                            src={
+                              program.imageUrl ||
+                              "https://placehold.jp/150x150.png"
+                            }
+                            alt={program.title}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
-    </main>
+
+      {/* 無限スクロール用のトリガー要素 */}
+      <div
+        ref={loadMoreRef}
+        className="h-20 flex items-center justify-center mt-8"
+      >
+        {loadingMore && (
+          <p className="text-gray-500 text-sm">さらに読み込み中...</p>
+        )}
+        {!hasMore && programs.length > 0 && (
+          <p className="text-gray-400 text-sm">すべて表示しました</p>
+        )}
+      </div>
+
+      {programs.length === 0 && (
+        <div className="text-center py-20">
+          <p className="text-gray-500">表示する動画がありません</p>
+        </div>
+      )}
+    </div>
   );
 }

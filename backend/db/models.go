@@ -8,13 +8,84 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Program struct {
-	ID           pgtype.UUID
-	Title        string
-	StartAt      pgtype.Timestamptz
-	EndAt        pgtype.Timestamptz
-	PlatformName string
-	ImageUrl     pgtype.Text
-	LinkUrl      pgtype.Text
-	CreatedAt    pgtype.Timestamptz
+// タイムライン項目（動画/配信/予定等）
+type Event struct {
+	ID              pgtype.UUID `json:"id"`
+	PlatformID      string      `json:"platform_id"`
+	SourceID        pgtype.UUID `json:"source_id"`
+	ExternalEventID string      `json:"external_event_id"`
+	// live=配信中, scheduled=予定, video=アーカイブ動画, premiere=プレミア公開
+	Type        string             `json:"type"`
+	Title       string             `json:"title"`
+	Description pgtype.Text        `json:"description"`
+	StartAt     pgtype.Timestamptz `json:"start_at"`
+	EndAt       pgtype.Timestamptz `json:"end_at"`
+	PublishedAt pgtype.Timestamptz `json:"published_at"`
+	Url         string             `json:"url"`
+	ImageUrl    pgtype.Text        `json:"image_url"`
+	// JSON形式の統計情報 {"views": 123, "likes": 45, "comments": 67}
+	Metrics   []byte             `json:"metrics"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	// Video/stream duration in HH:MM:SS or MM:SS format
+	Duration pgtype.Text `json:"duration"`
+}
+
+type PlanLimit struct {
+	PlanType      string             `json:"plan_type"`
+	MaxChannels   int32              `json:"max_channels"`
+	DisplayName   string             `json:"display_name"`
+	PriceMonthly  pgtype.Int4        `json:"price_monthly"`
+	HasFavorites  bool               `json:"has_favorites"`
+	HasDeviceSync bool               `json:"has_device_sync"`
+	Description   pgtype.Text        `json:"description"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+// 配信プラットフォーム（YouTube, Twitch等）
+type Platform struct {
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+// チャンネル/配信者の情報
+type Source struct {
+	ID                pgtype.UUID        `json:"id"`
+	PlatformID        string             `json:"platform_id"`
+	ExternalID        string             `json:"external_id"`
+	Handle            pgtype.Text        `json:"handle"`
+	DisplayName       pgtype.Text        `json:"display_name"`
+	ThumbnailUrl      pgtype.Text        `json:"thumbnail_url"`
+	UploadsPlaylistID pgtype.Text        `json:"uploads_playlist_id"`
+	LastFetchedAt     pgtype.Timestamptz `json:"last_fetched_at"`
+	// ok=正常, not_found=削除/非公開, suspended=BAN, error=取得エラー
+	FetchStatus string             `json:"fetch_status"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}
+
+type User struct {
+	ID             int64              `json:"id"`
+	FirebaseUid    string             `json:"firebase_uid"`
+	PlanType       string             `json:"plan_type"`
+	Email          pgtype.Text        `json:"email"`
+	DisplayName    pgtype.Text        `json:"display_name"`
+	PhotoUrl       pgtype.Text        `json:"photo_url"`
+	IsAnonymous    bool               `json:"is_anonymous"`
+	LastAccessedAt pgtype.Timestamptz `json:"last_accessed_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+// ユーザーの購読情報
+type UserSubscription struct {
+	UserID         int64              `json:"user_id"`
+	SourceID       pgtype.UUID        `json:"source_id"`
+	Enabled        bool               `json:"enabled"`
+	Priority       int32              `json:"priority"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	IsFavorite     bool               `json:"is_favorite"`
+	LastAccessedAt pgtype.Timestamptz `json:"last_accessed_at"`
 }

@@ -26,6 +26,8 @@ type GetTimelineRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Date              string                 `protobuf:"bytes,1,opt,name=date,proto3" json:"date,omitempty"`
 	YoutubeChannelIds []string               `protobuf:"bytes,2,rep,name=youtube_channel_ids,json=youtubeChannelIds,proto3" json:"youtube_channel_ids,omitempty"` // YouTubeチャンネルIDのリスト
+	BeforeTime        string                 `protobuf:"bytes,3,opt,name=before_time,json=beforeTime,proto3" json:"before_time,omitempty"`                        // ページング用：この時刻より前のイベントを取得（RFC3339形式）
+	Limit             int32                  `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`                                                   // 取得件数（デフォルト50、最大100）
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -74,10 +76,26 @@ func (x *GetTimelineRequest) GetYoutubeChannelIds() []string {
 	return nil
 }
 
+func (x *GetTimelineRequest) GetBeforeTime() string {
+	if x != nil {
+		return x.BeforeTime
+	}
+	return ""
+}
+
+func (x *GetTimelineRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
 // レスポンスの定義
 type GetTimelineResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Programs      []*Program             `protobuf:"bytes,1,rep,name=programs,proto3" json:"programs,omitempty"`
+	HasMore       bool                   `protobuf:"varint,2,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`         // 次のページがあるかどうか
+	NextCursor    string                 `protobuf:"bytes,3,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"` // 次のページ取得用のカーソル（最後のイベントの時刻）
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -119,21 +137,39 @@ func (x *GetTimelineResponse) GetPrograms() []*Program {
 	return nil
 }
 
+func (x *GetTimelineResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+func (x *GetTimelineResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
 // 番組データの定義
 type Program struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	StartAt       string                 `protobuf:"bytes,3,opt,name=start_at,json=startAt,proto3" json:"start_at,omitempty"`
-	EndAt         string                 `protobuf:"bytes,4,opt,name=end_at,json=endAt,proto3" json:"end_at,omitempty"`
-	PlatformName  string                 `protobuf:"bytes,5,opt,name=platform_name,json=platformName,proto3" json:"platform_name,omitempty"`
-	ImageUrl      string                 `protobuf:"bytes,6,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
-	LinkUrl       string                 `protobuf:"bytes,7,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
-	IsLive        bool                   `protobuf:"varint,8,opt,name=is_live,json=isLive,proto3" json:"is_live,omitempty"`
-	ChannelTitle  string                 `protobuf:"bytes,9,opt,name=channel_title,json=channelTitle,proto3" json:"channel_title,omitempty"` // チャンネル名（YouTubeの場合）
-	Description   string                 `protobuf:"bytes,10,opt,name=description,proto3" json:"description,omitempty"`                      // 説明文（YouTubeの場合）
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title               string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	StartAt             string                 `protobuf:"bytes,3,opt,name=start_at,json=startAt,proto3" json:"start_at,omitempty"`
+	EndAt               string                 `protobuf:"bytes,4,opt,name=end_at,json=endAt,proto3" json:"end_at,omitempty"`
+	PlatformName        string                 `protobuf:"bytes,5,opt,name=platform_name,json=platformName,proto3" json:"platform_name,omitempty"`
+	ImageUrl            string                 `protobuf:"bytes,6,opt,name=image_url,json=imageUrl,proto3" json:"image_url,omitempty"`
+	LinkUrl             string                 `protobuf:"bytes,7,opt,name=link_url,json=linkUrl,proto3" json:"link_url,omitempty"`
+	IsLive              bool                   `protobuf:"varint,8,opt,name=is_live,json=isLive,proto3" json:"is_live,omitempty"`
+	ChannelTitle        string                 `protobuf:"bytes,9,opt,name=channel_title,json=channelTitle,proto3" json:"channel_title,omitempty"`                         // チャンネル名（YouTubeの場合）
+	Description         string                 `protobuf:"bytes,10,opt,name=description,proto3" json:"description,omitempty"`                                              // 説明文（YouTubeの場合）
+	Duration            string                 `protobuf:"bytes,11,opt,name=duration,proto3" json:"duration,omitempty"`                                                    // 動画の長さ（例: "PT1H30M15S" または "01:30:15"）
+	PublishedAt         string                 `protobuf:"bytes,12,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`                           // 公開日時
+	ViewCount           int64                  `protobuf:"varint,13,opt,name=view_count,json=viewCount,proto3" json:"view_count,omitempty"`                                // 再生回数
+	ChannelThumbnailUrl string                 `protobuf:"bytes,14,opt,name=channel_thumbnail_url,json=channelThumbnailUrl,proto3" json:"channel_thumbnail_url,omitempty"` // チャンネルアイコンURL
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Program) Reset() {
@@ -232,6 +268,34 @@ func (x *Program) GetChannelTitle() string {
 func (x *Program) GetDescription() string {
 	if x != nil {
 		return x.Description
+	}
+	return ""
+}
+
+func (x *Program) GetDuration() string {
+	if x != nil {
+		return x.Duration
+	}
+	return ""
+}
+
+func (x *Program) GetPublishedAt() string {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return ""
+}
+
+func (x *Program) GetViewCount() int64 {
+	if x != nil {
+		return x.ViewCount
+	}
+	return 0
+}
+
+func (x *Program) GetChannelThumbnailUrl() string {
+	if x != nil {
+		return x.ChannelThumbnailUrl
 	}
 	return ""
 }
@@ -423,12 +487,18 @@ var File_proto_pixicast_v1_timeline_proto protoreflect.FileDescriptor
 
 const file_proto_pixicast_v1_timeline_proto_rawDesc = "" +
 	"\n" +
-	" proto/pixicast/v1/timeline.proto\x12\vpixicast.v1\"X\n" +
+	" proto/pixicast/v1/timeline.proto\x12\vpixicast.v1\"\x8f\x01\n" +
 	"\x12GetTimelineRequest\x12\x12\n" +
 	"\x04date\x18\x01 \x01(\tR\x04date\x12.\n" +
-	"\x13youtube_channel_ids\x18\x02 \x03(\tR\x11youtubeChannelIds\"G\n" +
+	"\x13youtube_channel_ids\x18\x02 \x03(\tR\x11youtubeChannelIds\x12\x1f\n" +
+	"\vbefore_time\x18\x03 \x01(\tR\n" +
+	"beforeTime\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\x05R\x05limit\"\x83\x01\n" +
 	"\x13GetTimelineResponse\x120\n" +
-	"\bprograms\x18\x01 \x03(\v2\x14.pixicast.v1.ProgramR\bprograms\"\x9e\x02\n" +
+	"\bprograms\x18\x01 \x03(\v2\x14.pixicast.v1.ProgramR\bprograms\x12\x19\n" +
+	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x12\x1f\n" +
+	"\vnext_cursor\x18\x03 \x01(\tR\n" +
+	"nextCursor\"\xb0\x03\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x19\n" +
@@ -440,7 +510,12 @@ const file_proto_pixicast_v1_timeline_proto_rawDesc = "" +
 	"\ais_live\x18\b \x01(\bR\x06isLive\x12#\n" +
 	"\rchannel_title\x18\t \x01(\tR\fchannelTitle\x12 \n" +
 	"\vdescription\x18\n" +
-	" \x01(\tR\vdescription\"Q\n" +
+	" \x01(\tR\vdescription\x12\x1a\n" +
+	"\bduration\x18\v \x01(\tR\bduration\x12!\n" +
+	"\fpublished_at\x18\f \x01(\tR\vpublishedAt\x12\x1d\n" +
+	"\n" +
+	"view_count\x18\r \x01(\x03R\tviewCount\x122\n" +
+	"\x15channel_thumbnail_url\x18\x0e \x01(\tR\x13channelThumbnailUrl\"Q\n" +
 	"\x18SearchYouTubeLiveRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1f\n" +
 	"\vmax_results\x18\x02 \x01(\x05R\n" +

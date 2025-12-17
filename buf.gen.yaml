@@ -13,14 +13,15 @@ plugins:
       - module=github.com/kinchoKayaba/pixicast/backend/gen
 
   # --- Frontend (TypeScript) ---
-  # 一時的にコメントアウト（手動で更新）
-  # - plugin: es
-  #   out: frontend/src/gen
-  #   opt:
-  #     - target=ts
-  #     - import_extension=none
-  # - plugin: connect-es
-  #   out: frontend/src/gen
-  #   opt:
-  #     - target=ts
-  #     - import_extension=none
+  - plugin: es
+    out: frontend/src/gen
+    opt:
+      - target=ts
+      - import_extension=none
+    path: frontend/node_modules/.bin/protoc-gen-es
+  - plugin: connect-es
+    out: frontend/src/gen
+    opt:
+      - target=ts
+      - import_extension=none
+    path: frontend/node_modules/.bin/protoc-gen-connect-es
