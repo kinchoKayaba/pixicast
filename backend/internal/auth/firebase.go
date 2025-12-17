@@ -68,9 +68,14 @@ func GetUserIDFromToken(token *auth.Token) int64 {
 
 func GetPlanTypeFromToken(token *auth.Token) string {
 	signInProvider := token.Firebase.SignInProvider
+	log.Printf("🔍 SignInProvider: %s, UID: %s", signInProvider, token.UID)
+	
 	if signInProvider == "anonymous" {
+		log.Printf("👤 Detected as anonymous user")
 		return "free_anonymous"
 	}
+	
+	log.Printf("👤 Detected as logged-in user (provider: %s)", signInProvider)
 	return "free_login"
 }
 

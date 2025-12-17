@@ -32,8 +32,9 @@ import (
 // サーバー構造体
 // 生のDB接続ではなく、sqlcが生成した「Queries」を持ちます
 type TimelineServer struct {
-	queries *db.Queries
-	youtube *youtube.Client
+	queries      *db.Queries
+	youtube      *youtube.Client
+	firebaseAuth *auth.FirebaseAuth
 }
 
 // parseDuration は ISO 8601 duration (PT1H30M15S) を "01:30:15" 形式に変換
@@ -88,38 +89,52 @@ func (s *TimelineServer) GetTimeline(
 		beforeTime = pgtype.Timestamptz{Valid: false}
 	}
 
+	// 認証: user_idを取得
+	authHeader := req.Header().Get("Authorization")
+	if authHeader == "" {
+		log.Printf("❌ GetTimeline: Authorization header is missing")
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("authentication required"))
+	}
+
+	idToken, err := auth.ExtractTokenFromHeader(authHeader)
+	if err != nil {
+		log.Printf("❌ GetTimeline: Failed to extract token: %v", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid authorization header"))
+	}
+
+	token, err := s.firebaseAuth.VerifyIDToken(ctx, idToken)
+	if err != nil {
+		log.Printf("❌ GetTimeline: Failed to verify token: %v", err)
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("invalid token"))
+	}
+
+	userID := auth.GetUserIDFromToken(token)
+	log.Printf("✅ GetTimeline: Authenticated user_id=%d", userID)
+
 	// 1. DBからデータを取得 (SQL実行) - 新スキーマのListTimelineを使用
-	// TODO: 認証実装後はリクエストからuser_idを取得
 	// limit+1件取得して、has_moreを判定
+	
+	// チャンネルIDの配列を準備（空配列の場合はnilを渡す）
+	var channelIds []string
+	if len(req.Msg.YoutubeChannelIds) > 0 {
+		channelIds = req.Msg.YoutubeChannelIds
+	}
+	
 	timelineData, err := s.queries.ListTimeline(ctx, db.ListTimelineParams{
-		UserID:  1, // 暫定: user_id=1 固定
-		Column2: beforeTime,
-		Limit:   limit + 1, // 1件多く取得してhas_moreを判定
+		UserID:     userID,
+		Column2:    beforeTime,
+		Limit:      limit + 1, // 1件多く取得してhas_moreを判定
+		ChannelIds: channelIds,
 	})
 	if err != nil {
 		log.Printf("Failed to fetch timeline: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("database error"))
 	}
-	log.Printf("📊 DB timeline events fetched: %d (requested: %d)", len(timelineData), limit)
+	log.Printf("📊 DB timeline events fetched: %d (requested: %d), channel_ids: %v", len(timelineData), limit, channelIds)
 
-	// 2. リクエストで指定されたチャンネルIDのマップを作成（フィルタリング用）
-	channelFilterMap := make(map[string]bool)
-	if len(req.Msg.YoutubeChannelIds) > 0 {
-		for _, channelID := range req.Msg.YoutubeChannelIds {
-			channelFilterMap[channelID] = true
-		}
-	}
-
-	// 3. DBの型(db.ListTimelineRow) を gRPCの型(pixicastv1.Program) に変換
+	// 2. DBの型(db.ListTimelineRow) を gRPCの型(pixicastv1.Program) に変換
 	var responsePrograms []*pixicastv1.Program
 	for _, event := range timelineData {
-		// チャンネルIDでフィルタリング（指定がある場合のみ）
-		if len(channelFilterMap) > 0 {
-			// event.SourceExternalID（チャンネルID）がフィルタに含まれているか確認
-			if !channelFilterMap[event.SourceExternalID] {
-				continue // スキップ
-			}
-		}
 		// 放送中かどうかの簡易判定
 		now := time.Now()
 		isLive := event.Type == "live" && 
@@ -202,7 +217,7 @@ func (s *TimelineServer) GetTimeline(
 	nextCursor := ""
 	
 	// limit+1件取得した場合、最後の1件を除いてhas_more=trueに設定
-	if int32(len(responsePrograms)) > limit {
+	if len(timelineData) > int(limit) {
 		hasMore = true
 		responsePrograms = responsePrograms[:limit] // 最後の1件を除く
 		
@@ -335,8 +350,9 @@ func main() {
 
 	// サーバーに渡す
 	server := &TimelineServer{
-		queries: queries,
-		youtube: youtubeClient,
+		queries:      queries,
+		youtube:      youtubeClient,
+		firebaseAuth: firebaseAuth,
 	}
 
 	path, handler := pixicastv1connect.NewTimelineServiceHandler(server)

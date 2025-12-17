@@ -23,10 +23,20 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [collapsedPlatforms, setCollapsedPlatforms] = useState<
+    Record<string, boolean>
+  >({});
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedChannelId = searchParams.get("channel");
   const { user, getIdToken } = useAuth();
+
+  const togglePlatform = (platform: string) => {
+    setCollapsedPlatforms((prev) => ({
+      ...prev,
+      [platform]: !prev[platform],
+    }));
+  };
 
   const fetchChannels = async () => {
     try {
@@ -74,6 +84,44 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
   useEffect(() => {
     fetchChannels();
   }, [pathname, user]);
+
+  // プラットフォーム別にグループ化
+  const groupedChannels = channels.reduce((acc, channel) => {
+    const platform = channel.platform;
+    if (!acc[platform]) {
+      acc[platform] = [];
+    }
+    acc[platform].push(channel);
+    return acc;
+  }, {} as Record<string, Channel[]>);
+
+  // プラットフォーム名を表示用に変換
+  const getPlatformLabel = (platform: string) => {
+    switch (platform) {
+      case "youtube":
+        return "YouTube";
+      case "twitch":
+        return "Twitch";
+      case "podcast":
+        return "Podcast";
+      default:
+        return platform;
+    }
+  };
+
+  // プラットフォームの色を取得
+  const getPlatformColor = (platform: string) => {
+    switch (platform) {
+      case "youtube":
+        return "text-red-600";
+      case "twitch":
+        return "text-purple-600";
+      case "podcast":
+        return "text-[#842CC2]";
+      default:
+        return "text-gray-600";
+    }
+  };
 
   return (
     <aside
@@ -124,28 +172,66 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
           </div>
         )}
 
-        {/* チャンネルリスト */}
-        {channels.map((channel) => (
-          <Link
-            key={channel.channel_id}
-            href={`/?channel=${channel.channel_id}`}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 ${
-              selectedChannelId === channel.channel_id
-                ? "bg-gray-100 font-semibold"
-                : ""
-            }`}
-          >
-            <img
-              src={channel.thumbnail_url}
-              alt={channel.display_name}
-              className="w-6 h-6 rounded-full flex-shrink-0"
-            />
+        {/* チャンネルリスト - プラットフォーム別にグループ化 */}
+        {Object.entries(groupedChannels).map(([platform, platformChannels]) => (
+          <div key={platform} className="mb-3">
+            {/* プラットフォームヘッダー */}
             {isOpen && (
-              <span className="text-sm text-gray-700 truncate">
-                {channel.display_name}
-              </span>
+              <button
+                onClick={() => togglePlatform(platform)}
+                className={`w-full flex items-center justify-between px-3 py-1 text-xs font-semibold ${getPlatformColor(
+                  platform
+                )} hover:opacity-80 transition-opacity`}
+              >
+                <span>
+                  {getPlatformLabel(platform)}{" "}
+                  <span className="opacity-70">
+                    ({platformChannels.length})
+                  </span>
+                </span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${
+                    collapsedPlatforms[platform] ? "-rotate-90" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
             )}
-          </Link>
+
+            {/* チャンネルリスト */}
+            {!collapsedPlatforms[platform] &&
+              platformChannels.map((channel) => (
+                <Link
+                  key={channel.channel_id}
+                  href={`/?channel=${channel.channel_id}`}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 ${
+                    selectedChannelId === channel.channel_id
+                      ? "bg-gray-100 font-semibold"
+                      : ""
+                  }`}
+                >
+                  <img
+                    src={channel.thumbnail_url}
+                    alt={channel.display_name}
+                    className="w-6 h-6 rounded-full flex-shrink-0"
+                  />
+                  {isOpen && (
+                    <span className="text-sm text-gray-700 truncate">
+                      {channel.display_name}
+                    </span>
+                  )}
+                </Link>
+              ))}
+          </div>
         ))}
 
         {/* チャンネル管理 */}

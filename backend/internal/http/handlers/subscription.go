@@ -88,21 +88,29 @@ func (h *SubscriptionHandler) CreateSubscription(w http.ResponseWriter, r *http.
 			token, err := h.firebaseAuth.VerifyIDToken(ctx, idToken)
 			if err == nil && token != nil {
 				planType := auth.GetPlanTypeFromToken(token)
+				log.Printf("📊 Plan check - planType: %s, userID: %d", planType, userID)
+				
 				planLimit, err := h.queries.GetPlanLimit(ctx, planType)
 				if err != nil {
-					log.Printf("Failed to get plan limit for %s: %v", planType, err)
+					log.Printf("❌ Failed to get plan limit for %s: %v", planType, err)
 					planLimit.MaxChannels = 5
 				}
+				log.Printf("📊 Plan limit - max_channels: %d, display_name: %s", planLimit.MaxChannels, planLimit.DisplayName)
+				
 				count, err := h.queries.CountUserSubscriptions(ctx, userID)
 				if err != nil {
-					log.Printf("Failed to count subscriptions: %v", err)
-				} else if count >= int64(planLimit.MaxChannels) {
-					if planType == "free_anonymous" {
-						respondError(w, http.StatusForbidden, fmt.Sprintf("匿名ユーザーは%dチャンネルまでしか登録できません。Googleログインして無制限に登録しましょう！", planLimit.MaxChannels))
-					} else {
-						respondError(w, http.StatusForbidden, fmt.Sprintf("%sプランは%dチャンネルまでです。", planLimit.DisplayName, planLimit.MaxChannels))
+					log.Printf("❌ Failed to count subscriptions: %v", err)
+				} else {
+					log.Printf("📊 Current subscriptions: %d / %d", count, planLimit.MaxChannels)
+					if count >= int64(planLimit.MaxChannels) {
+						log.Printf("🚫 Subscription limit reached for planType: %s", planType)
+						if planType == "free_anonymous" {
+							respondError(w, http.StatusForbidden, fmt.Sprintf("匿名ユーザーは%dチャンネルまでしか登録できません。Googleログインして無制限に登録しましょう！", planLimit.MaxChannels))
+						} else {
+							respondError(w, http.StatusForbidden, fmt.Sprintf("%sプランは%dチャンネルまでです。", planLimit.DisplayName, planLimit.MaxChannels))
+						}
+						return
 					}
-					return
 				}
 			}
 		}
@@ -470,13 +478,28 @@ func (h *SubscriptionHandler) DeleteSubscription(w http.ResponseWriter, r *http.
 
 	ctx := context.Background()
 
-	// チャンネルを検索
-	source, err := h.queries.GetSourceByExternalID(ctx, db.GetSourceByExternalIDParams{
-		PlatformID: "youtube",
-		ExternalID: channelID,
-	})
-	if err != nil {
-		log.Printf("Failed to find source: %v", err)
+	// チャンネルを検索（複数のプラットフォームを試す）
+	var source db.Source
+	var findErr error
+	
+	// YouTube, Twitch, Podcastの順に試す
+	platforms := []string{"youtube", "twitch", "podcast"}
+	found := false
+	
+	for _, platform := range platforms {
+		source, findErr = h.queries.GetSourceByExternalID(ctx, db.GetSourceByExternalIDParams{
+			PlatformID: platform,
+			ExternalID: channelID,
+		})
+		if findErr == nil {
+			log.Printf("✅ Found source on platform: %s", platform)
+			found = true
+			break
+		}
+	}
+	
+	if !found {
+		log.Printf("❌ Failed to find source with ID %s on any platform", channelID)
 		respondError(w, http.StatusNotFound, "Channel not found")
 		return
 	}
@@ -549,7 +572,15 @@ func (h *SubscriptionHandler) handleTwitchSubscription(ctx context.Context, w ht
 
 // handlePodcastSubscription はPodcast購読処理
 func (h *SubscriptionHandler) handlePodcastSubscription(ctx context.Context, w http.ResponseWriter, req CreateSubscriptionRequest, userID int64) {
-	feedURL := req.Input
+	// Apple PodcastsのURLからRSSフィードURLを取得
+	feedURL, err := h.podcast.ResolveFeedURL(ctx, req.Input)
+	if err != nil {
+		log.Printf("Failed to resolve feed URL: %v", err)
+		respondError(w, http.StatusBadRequest, "failed to resolve podcast feed URL")
+		return
+	}
+	log.Printf("Resolved feed URL: %s", feedURL)
+
 	podcastFeed, _, err := h.podcast.ParseFeed(ctx, feedURL)
 	if err != nil {
 		log.Printf("Failed to parse podcast feed: %v", err)
@@ -636,13 +667,27 @@ func (h *SubscriptionHandler) ToggleFavorite(w http.ResponseWriter, r *http.Requ
 	channelID := parts[0]
 
 	ctx := context.Background()
-	source, err := h.queries.GetSourceByExternalID(ctx, db.GetSourceByExternalIDParams{PlatformID: "youtube", ExternalID: channelID})
-	if err != nil {
-		source, err = h.queries.GetSourceByExternalID(ctx, db.GetSourceByExternalIDParams{PlatformID: "twitch", ExternalID: channelID})
-		if err != nil {
-			respondError(w, http.StatusNotFound, "Channel not found")
-			return
+	
+	// チャンネルを検索（複数のプラットフォームを試す）
+	var source db.Source
+	var findErr error
+	platforms := []string{"youtube", "twitch", "podcast"}
+	found := false
+	
+	for _, platform := range platforms {
+		source, findErr = h.queries.GetSourceByExternalID(ctx, db.GetSourceByExternalIDParams{
+			PlatformID: platform,
+			ExternalID: channelID,
+		})
+		if findErr == nil {
+			found = true
+			break
 		}
+	}
+	
+	if !found {
+		respondError(w, http.StatusNotFound, "Channel not found")
+		return
 	}
 
 	_, err = h.queries.ToggleSubscriptionFavorite(ctx, db.ToggleSubscriptionFavoriteParams{

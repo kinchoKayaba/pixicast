@@ -87,6 +87,10 @@ WHERE
         $2::timestamptz IS NULL
         OR COALESCE(e.start_at, e.published_at) < $2
     )
+    AND (
+        sqlc.narg('channel_ids')::text[] IS NULL
+        OR s.external_id = ANY(sqlc.narg('channel_ids')::text[])
+    )
 ORDER BY COALESCE(e.start_at, e.published_at) DESC NULLS LAST
 LIMIT $3;
 

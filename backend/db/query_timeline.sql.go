@@ -344,14 +344,19 @@ WHERE
         $2::timestamptz IS NULL
         OR COALESCE(e.start_at, e.published_at) < $2
     )
+    AND (
+        $4::text[] IS NULL
+        OR s.external_id = ANY($4::text[])
+    )
 ORDER BY COALESCE(e.start_at, e.published_at) DESC NULLS LAST
 LIMIT $3
 `
 
 type ListTimelineParams struct {
-	UserID  int64              `json:"user_id"`
-	Column2 pgtype.Timestamptz `json:"column_2"`
-	Limit   int32              `json:"limit"`
+	UserID     int64              `json:"user_id"`
+	Column2    pgtype.Timestamptz `json:"column_2"`
+	Limit      int32              `json:"limit"`
+	ChannelIds []string           `json:"channel_ids"`
 }
 
 type ListTimelineRow struct {
@@ -381,7 +386,12 @@ type ListTimelineRow struct {
 // ListTimeline: ユーザーのタイムラインを取得
 // ============================================================================
 func (q *Queries) ListTimeline(ctx context.Context, arg ListTimelineParams) ([]ListTimelineRow, error) {
-	rows, err := q.db.Query(ctx, listTimeline, arg.UserID, arg.Column2, arg.Limit)
+	rows, err := q.db.Query(ctx, listTimeline,
+		arg.UserID,
+		arg.Column2,
+		arg.Limit,
+		arg.ChannelIds,
+	)
 	if err != nil {
 		return nil, err
 	}

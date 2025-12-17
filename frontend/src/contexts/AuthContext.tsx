@@ -64,10 +64,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      console.log("🔐 Googleログイン開始, 現在のユーザー:", user?.uid, "isAnonymous:", user?.isAnonymous);
+      
+      // 匿名ユーザーの場合は、まずログアウトしてから新規ログイン
+      if (user?.isAnonymous) {
+        console.log("🗑️ 匿名アカウントを削除してからGoogleログイン");
+        await firebaseSignOut(auth);
+      }
+      
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      console.log("✅ Googleログイン成功:", result.user.uid, "email:", result.user.email);
     } catch (error) {
-      console.error("Googleログインエラー:", error);
+      console.error("❌ Googleログインエラー:", error);
       throw error;
     }
   };

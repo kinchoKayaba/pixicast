@@ -2,14 +2,18 @@ package podcast
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/mmcdole/gofeed"
 )
 
 type Client struct {
-	parser *gofeed.Parser
+	parser     *gofeed.Parser
+	httpClient *http.Client
 }
 
 type PodcastFeed struct {
@@ -31,8 +35,66 @@ type PodcastEpisode struct {
 
 func NewClient() *Client {
 	return &Client{
-		parser: gofeed.NewParser(),
+		parser:     gofeed.NewParser(),
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// ResolveFeedURL はApple PodcastsのURLから実際のRSSフィードURLを取得
+func (c *Client) ResolveFeedURL(ctx context.Context, input string) (string, error) {
+	// すでにRSSフィードURLの場合はそのまま返す
+	if regexp.MustCompile(`^https?://.*\.(xml|rss)`).MatchString(input) {
+		return input, nil
+	}
+
+	// Apple Podcasts URLからIDを抽出
+	re := regexp.MustCompile(`id(\d+)`)
+	matches := re.FindStringSubmatch(input)
+	if len(matches) < 2 {
+		// IDが見つからない場合は、入力をそのまま返す（RSSフィードURLかもしれない）
+		return input, nil
+	}
+
+	podcastID := matches[1]
+
+	// iTunes Search APIでRSSフィードURLを取得
+	apiURL := fmt.Sprintf("https://itunes.apple.com/lookup?id=%s&entity=podcast", podcastID)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch from iTunes API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("iTunes API returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		ResultCount int `json:"resultCount"`
+		Results     []struct {
+			FeedURL string `json:"feedUrl"`
+		} `json:"results"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode iTunes API response: %w", err)
+	}
+
+	if result.ResultCount == 0 || len(result.Results) == 0 {
+		return "", fmt.Errorf("podcast not found")
+	}
+
+	feedURL := result.Results[0].FeedURL
+	if feedURL == "" {
+		return "", fmt.Errorf("feed URL not found in iTunes API response")
+	}
+
+	return feedURL, nil
 }
 
 func (c *Client) ParseFeed(ctx context.Context, feedURL string) (*PodcastFeed, []PodcastEpisode, error) {

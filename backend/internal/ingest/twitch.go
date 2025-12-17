@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -44,6 +45,10 @@ func FetchAndSaveTwitchVideosSince(
 
 		metrics := []byte(fmt.Sprintf(`{"views": %d}`, video.ViewCount))
 
+		// TwitchのサムネイルURLのプレースホルダーを実際のサイズに置換
+		thumbnailURL := strings.ReplaceAll(video.ThumbnailURL, "%{width}", "640")
+		thumbnailURL = strings.ReplaceAll(thumbnailURL, "%{height}", "360")
+
 		_, err = queries.UpsertEvent(ctx, db.UpsertEventParams{
 			PlatformID:      "twitch",
 			SourceID:        sourceID,
@@ -55,7 +60,7 @@ func FetchAndSaveTwitchVideosSince(
 			EndAt:           pgtype.Timestamptz{},
 			PublishedAt:     pgtype.Timestamptz{Time: video.CreatedAt, Valid: true},
 			Url:             video.URL,
-			ImageUrl:        pgtype.Text{String: video.ThumbnailURL, Valid: true},
+			ImageUrl:        pgtype.Text{String: thumbnailURL, Valid: thumbnailURL != ""},
 			Metrics:         metrics,
 			Duration:        pgtype.Text{String: video.Duration, Valid: video.Duration != ""},
 		})

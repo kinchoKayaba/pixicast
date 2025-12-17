@@ -20,8 +20,18 @@ export default function ChannelsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [collapsedPlatforms, setCollapsedPlatforms] = useState<
+    Record<string, boolean>
+  >({});
   const router = useRouter();
   const { user, getIdToken } = useAuth();
+
+  const togglePlatform = (platform: string) => {
+    setCollapsedPlatforms((prev) => ({
+      ...prev,
+      [platform]: !prev[platform],
+    }));
+  };
 
   useEffect(() => {
     fetchChannels();
@@ -59,7 +69,10 @@ export default function ChannelsPage() {
       }
 
       const data = await response.json();
-      console.log("✅ ChannelsPage: Channels loaded:", data.subscriptions?.length || 0);
+      console.log(
+        "✅ ChannelsPage: Channels loaded:",
+        data.subscriptions?.length || 0
+      );
       setChannels(data.subscriptions || []);
     } catch (error) {
       console.error("❌ ChannelsPage: チャンネル取得エラー:", error);
@@ -119,6 +132,44 @@ export default function ChannelsPage() {
     fetchChannels();
   };
 
+  // プラットフォーム別にグループ化
+  const groupedChannels = channels.reduce((acc, channel) => {
+    const platform = channel.platform;
+    if (!acc[platform]) {
+      acc[platform] = [];
+    }
+    acc[platform].push(channel);
+    return acc;
+  }, {} as Record<string, Channel[]>);
+
+  // プラットフォーム名を表示用に変換
+  const getPlatformLabel = (platform: string) => {
+    switch (platform) {
+      case "youtube":
+        return "YouTube";
+      case "twitch":
+        return "Twitch";
+      case "podcast":
+        return "Podcast";
+      default:
+        return platform;
+    }
+  };
+
+  // プラットフォームの色を取得
+  const getPlatformColor = (platform: string) => {
+    switch (platform) {
+      case "youtube":
+        return "bg-red-600";
+      case "twitch":
+        return "bg-purple-600";
+      case "podcast":
+        return "bg-[#842CC2]";
+      default:
+        return "bg-gray-600";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-pink-50 p-8 pt-20">
       <div className="max-w-4xl">
@@ -158,39 +209,86 @@ export default function ChannelsPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {channels.map((channel) => (
-              <div
-                key={channel.channel_id}
-                className="bg-white rounded-lg shadow p-6 flex items-center justify-between hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={channel.thumbnail_url}
-                    alt={channel.display_name}
-                    className="w-16 h-16 rounded-full"
-                  />
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-800">
-                      {channel.display_name}
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      {channel.platform === "youtube"
-                        ? "YouTube"
-                        : channel.platform}
-                      {channel.handle && ` • @${channel.handle}`}
-                    </p>
-                  </div>
-                </div>
+          <div className="space-y-8">
+            {Object.entries(groupedChannels).map(
+              ([platform, platformChannels]) => (
+                <div key={platform}>
+                  {/* プラットフォームヘッダー */}
+                  <button
+                    onClick={() => togglePlatform(platform)}
+                    className="flex items-center gap-3 mb-4 hover:opacity-80 transition-opacity w-full"
+                  >
+                    <div
+                      className={`${getPlatformColor(
+                        platform
+                      )} text-white px-3 py-1.5 rounded-lg font-bold text-sm`}
+                    >
+                      {getPlatformLabel(platform)}
+                    </div>
+                    <span className="text-gray-500 text-sm">
+                      {platformChannels.length}チャンネル
+                    </span>
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ml-2 ${
+                        collapsedPlatforms[platform] ? "-rotate-90" : ""
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
 
-                <button
-                  onClick={() => handleDelete(channel.channel_id)}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                >
-                  削除
-                </button>
-              </div>
-            ))}
+                  {/* チャンネルリスト */}
+                  {!collapsedPlatforms[platform] && (
+                    <div className="space-y-3">
+                      {platformChannels.map((channel) => (
+                        <div
+                          key={channel.channel_id}
+                          className="bg-white rounded-lg shadow p-4 flex items-center justify-between hover:shadow-md transition-shadow"
+                        >
+                          <button
+                            onClick={() =>
+                              router.push(`/?channel=${channel.channel_id}`)
+                            }
+                            className="flex items-center gap-4 flex-1 text-left hover:opacity-80 transition-opacity"
+                          >
+                            <img
+                              src={channel.thumbnail_url}
+                              alt={channel.display_name}
+                              className="w-12 h-12 rounded-full"
+                            />
+                            <div>
+                              <h2 className="text-base font-semibold text-gray-800">
+                                {channel.display_name}
+                              </h2>
+                              {channel.handle && (
+                                <p className="text-sm text-gray-500">
+                                  @{channel.handle}
+                                </p>
+                              )}
+                            </div>
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(channel.channel_id)}
+                            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm"
+                          >
+                            削除
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            )}
           </div>
         )}
       </div>
