@@ -22,7 +22,10 @@ import (
 	"github.com/kinchoKayaba/pixicast/backend/db" // ★sqlcが作ったコード
 	pixicastv1 "github.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1"
 	"github.com/kinchoKayaba/pixicast/backend/gen/pixicast/v1/pixicastv1connect"
+	"github.com/kinchoKayaba/pixicast/backend/internal/auth"
 	"github.com/kinchoKayaba/pixicast/backend/internal/http/handlers"
+	"github.com/kinchoKayaba/pixicast/backend/internal/podcast"
+	"github.com/kinchoKayaba/pixicast/backend/internal/twitch"
 	"github.com/kinchoKayaba/pixicast/backend/internal/youtube"
 )
 
@@ -294,6 +297,21 @@ func main() {
 	}
 	fmt.Println("✅ YouTube API client initialized successfully!")
 
+	// Twitch API クライアントの初期化
+	twitchClient := twitch.NewClient()
+	fmt.Println("✅ Twitch API client initialized successfully!")
+
+	// Podcast クライアントの初期化
+	podcastClient := podcast.NewClient()
+	fmt.Println("✅ Podcast client initialized successfully!")
+
+	// Firebase Auth の初期化
+	firebaseAuth, err := auth.NewFirebaseAuth(context.Background())
+	if err != nil {
+		log.Fatalf("Failed to initialize Firebase Auth: %v", err)
+	}
+	fmt.Println("✅ Firebase Auth initialized successfully!")
+
 	dbUrl := os.Getenv("DATABASE_URL")
 	if dbUrl == "" {
 		log.Fatal("DATABASE_URL environment variable is not set")
@@ -342,7 +360,7 @@ func main() {
 	}
 	
 	// Subscription ハンドラを作成
-	subscriptionHandler := handlers.NewSubscriptionHandler(queries, youtubeClient)
+	subscriptionHandler := handlers.NewSubscriptionHandler(queries, youtubeClient, twitchClient, podcastClient, firebaseAuth)
 	
 	mux := http.NewServeMux()
 	mux.Handle(path, corsHandler(handler))
@@ -373,7 +391,13 @@ func main() {
 	})
 	
 	// DELETE /v1/subscriptions/{channelId}
+	// POST /v1/subscriptions/{channelId}/favorite
 	mux.HandleFunc("/v1/subscriptions/", func(w http.ResponseWriter, r *http.Request) {
+		// POST で /favorite で終わる場合はToggleFavorite
+		if r.Method == "POST" && len(r.URL.Path) > 0 && r.URL.Path[len(r.URL.Path)-9:] == "/favorite" {
+			subscriptionHandler.ToggleFavorite(w, r)
+			return
+		}
 		if r.Method == "DELETE" || r.Method == "OPTIONS" {
 			subscriptionHandler.DeleteSubscription(w, r)
 			return
