@@ -30,7 +30,7 @@ func FetchAndSaveTwitchVideosSince(
 	savedCount := 0
 
 	// 1. まず現在配信中のライブストリームを取得
-	liveStreamStartTimes := make(map[string]time.Time) // タイトル -> 開始時刻
+	var liveStreamStartTimes []time.Time // ライブストリームの開始時刻リスト
 	streams, err := twitchClient.GetStreams(ctx, userID)
 	if err != nil {
 		log.Printf("⚠️ Failed to get live streams (non-fatal): %v", err)
@@ -67,7 +67,7 @@ func FetchAndSaveTwitchVideosSince(
 			log.Printf("✅ Saved LIVE stream: %s (%d viewers)", stream.Title, stream.ViewerCount)
 			
 			// ライブストリームの開始時刻を記録（VOD重複除外用）
-			liveStreamStartTimes[stream.Title] = stream.StartedAt
+			liveStreamStartTimes = append(liveStreamStartTimes, stream.StartedAt)
 			savedCount++
 		}
 	}
@@ -84,13 +84,18 @@ func FetchAndSaveTwitchVideosSince(
 		}
 
 		// 配信中のライブストリームと重複しているVODは除外
-		// （同じタイトルで、作成時刻がライブ開始時刻の1時間以内）
-		if liveStartTime, isLive := liveStreamStartTimes[video.Title]; isLive {
+		// （VODの作成時刻が、いずれかのライブストリーム開始時刻の1時間以内）
+		isDuplicate := false
+		for _, liveStartTime := range liveStreamStartTimes {
 			timeDiff := video.CreatedAt.Sub(liveStartTime)
 			if timeDiff.Abs() < 1*time.Hour {
 				log.Printf("⏭️  Skipping VOD (duplicate of live stream): %s", video.Title)
-				continue
+				isDuplicate = true
+				break
 			}
+		}
+		if isDuplicate {
+			continue
 		}
 
 		eventType := "video"
