@@ -348,7 +348,9 @@ WHERE
         $4::text[] IS NULL
         OR s.external_id = ANY($4::text[])
     )
-ORDER BY COALESCE(e.start_at, e.published_at) DESC NULLS LAST
+ORDER BY 
+    COALESCE(e.start_at, e.published_at) DESC NULLS LAST,
+    CASE WHEN e.type = 'live' THEN 0 ELSE 1 END ASC
 LIMIT $3
 `
 

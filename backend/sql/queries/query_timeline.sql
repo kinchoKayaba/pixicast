@@ -91,7 +91,9 @@ WHERE
         sqlc.narg('channel_ids')::text[] IS NULL
         OR s.external_id = ANY(sqlc.narg('channel_ids')::text[])
     )
-ORDER BY COALESCE(e.start_at, e.published_at) DESC NULLS LAST
+ORDER BY 
+    COALESCE(e.start_at, e.published_at) DESC NULLS LAST,
+    CASE WHEN e.type = 'live' THEN 0 ELSE 1 END ASC
 LIMIT $3;
 
 -- ============================================================================
