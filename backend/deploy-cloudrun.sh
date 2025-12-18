@@ -29,8 +29,10 @@ gcloud run deploy "$SERVICE_NAME" \
   --platform managed \
   --region "$REGION" \
   --allow-unauthenticated \
-  --set-env-vars "PORT=8080" \
-  --set-secrets "DATABASE_URL=DATABASE_URL:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest,TWITCH_CLIENT_ID=TWITCH_CLIENT_ID:latest,TWITCH_CLIENT_SECRET=TWITCH_CLIENT_SECRET:latest,GOOGLE_APPLICATION_CREDENTIALS=/secrets/firebase-admin-key.json" \
+  --port 8080 \
+  --memory 512Mi \
+  --max-instances 10 \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest,TWITCH_CLIENT_ID=TWITCH_CLIENT_ID:latest,TWITCH_CLIENT_SECRET=TWITCH_CLIENT_SECRET:latest,GOOGLE_APPLICATION_CREDENTIALS_JSON=FIREBASE_ADMIN_KEY:latest" \
   --project="$PROJECT_ID"
 
 echo "✅ Deployment complete!"

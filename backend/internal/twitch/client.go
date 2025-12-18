@@ -167,3 +167,56 @@ func (c *Client) GetVideos(ctx context.Context, userID string, first int) ([]Twi
 	return videosResp.Data, nil
 }
 
+// TwitchStream は配信中のストリーム情報
+type TwitchStream struct {
+	ID           string    `json:"id"`
+	UserID       string    `json:"user_id"`
+	UserLogin    string    `json:"user_login"`
+	UserName     string    `json:"user_name"`
+	GameID       string    `json:"game_id"`
+	GameName     string    `json:"game_name"`
+	Type         string    `json:"type"` // "live"
+	Title        string    `json:"title"`
+	ViewerCount  int       `json:"viewer_count"`
+	StartedAt    time.Time `json:"started_at"`
+	Language     string    `json:"language"`
+	ThumbnailURL string    `json:"thumbnail_url"`
+	IsMature     bool      `json:"is_mature"`
+}
+
+// GetStreams は指定されたユーザーの現在配信中のストリームを取得
+func (c *Client) GetStreams(ctx context.Context, userID string) ([]TwitchStream, error) {
+	if err := c.ensureAccessToken(ctx); err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("https://api.twitch.tv/helix/streams?user_id=%s", userID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Client-ID", c.clientID)
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get streams: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("streams request failed: %s, body: %s", resp.Status, string(body))
+	}
+
+	var streamsResp struct {
+		Data []TwitchStream `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&streamsResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return streamsResp.Data, nil
+}
+
