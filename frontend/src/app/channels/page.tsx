@@ -119,9 +119,8 @@ export default function ChannelsPage() {
       // リストを更新（UIの即座の反映用）
       setChannels(channels.filter((ch) => ch.channel_id !== channelId));
 
-      // ホームにリダイレクト（サイドバーが自動的に更新される）
-      router.push("/");
-      router.refresh(); // Next.jsのキャッシュをリフレッシュ
+      // チャンネル管理画面にとどまる
+      console.log("✅ チャンネルを削除しました");
     } catch (error) {
       console.error("チャンネル削除エラー:", error);
       alert(`削除に失敗しました: ${error}`);
