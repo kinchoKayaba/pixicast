@@ -1,22 +1,25 @@
-# 環境変数ファイル（セキュリティ上重要！）
-.env
+# Environment files
 .env.*
-.env.dev
-.env.production
-.env.local
+*.env
 
-# Git関連
-.git
+# Firebase credentials (will be provided via Secret Manager)
+*firebase*.json
+
+# Development files
+bin/
+*.test
+*.out
+
+# Git
+.git/
 .gitignore
 
-# ドキュメント
+# Documentation
 README.md
 *.md
 
-# テストファイル
-*_test.go
+# Scripts
+scripts/
 
-# 一時ファイル
-*.tmp
-*.log
-
+# Examples
+examples/

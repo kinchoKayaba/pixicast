@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { client } from "@/lib/client";
+import { API_BASE_URL } from "@/lib/config";
 // 生成された型定義をインポート
 import { Program } from "@/gen/proto/pixicast/v1/timeline_pb";
 
@@ -51,7 +52,7 @@ export default function Timeline() {
 
       // 1. まず購読チャンネル一覧を取得
       const subscriptionsResponse = await fetch(
-        "http://localhost:8080/v1/subscriptions",
+        `${API_BASE_URL}/v1/subscriptions`,
         {
           cache: "no-store",
           headers: {
@@ -148,7 +149,7 @@ export default function Timeline() {
 
       // チャンネルIDを取得
       const subscriptionsResponse = await fetch(
-        "http://localhost:8080/v1/subscriptions",
+        `${API_BASE_URL}/v1/subscriptions`,
         {
           cache: "no-store",
           headers: {

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { API_BASE_URL } from "@/lib/config";
 
 interface Channel {
   user_id: number;
@@ -55,7 +56,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       }
 
       console.log("🔍 Sidebar: Fetching channels for user:", user.uid);
-      const response = await fetch("http://localhost:8080/v1/subscriptions", {
+      const response = await fetch(`${API_BASE_URL}/v1/subscriptions`, {
         cache: "no-store",
         headers: {
           Authorization: `Bearer ${idToken}`,

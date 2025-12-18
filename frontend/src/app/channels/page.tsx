@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import AddChannelModal from "@/components/AddChannelModal";
+import { API_BASE_URL } from "@/lib/config";
 
 interface Channel {
   user_id: number;
@@ -55,7 +56,7 @@ export default function ChannelsPage() {
         return;
       }
 
-      const response = await fetch("http://localhost:8080/v1/subscriptions", {
+      const response = await fetch(`${API_BASE_URL}/v1/subscriptions`, {
         headers: {
           Authorization: `Bearer ${idToken}`,
         },
@@ -96,7 +97,7 @@ export default function ChannelsPage() {
       }
 
       const response = await fetch(
-        `http://localhost:8080/v1/subscriptions/${channelId}`,
+        `${API_BASE_URL}/v1/subscriptions/${channelId}`,
         {
           method: "DELETE",
           headers: {

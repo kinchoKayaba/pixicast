@@ -4,9 +4,10 @@ import { useState } from "react";
 import { createPromiseClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { TimelineService } from "@/gen/proto/pixicast/v1/timeline_connect";
+import { API_BASE_URL } from "@/lib/config";
 
 const transport = createConnectTransport({
-  baseUrl: "http://localhost:8080",
+  baseUrl: API_BASE_URL,
 });
 
 const client = createPromiseClient(TimelineService, transport);

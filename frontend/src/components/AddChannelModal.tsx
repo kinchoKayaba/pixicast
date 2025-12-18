@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { API_BASE_URL } from "@/lib/config";
 
 interface AddChannelModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export default function AddChannelModal({
       const idToken = await getIdToken();
       if (!idToken) return;
 
-      const response = await fetch("http://localhost:8080/v1/me", {
+      const response = await fetch(`${API_BASE_URL}/v1/me`, {
         headers: {
           Authorization: `Bearer ${idToken}`,
         },
@@ -82,7 +83,7 @@ export default function AddChannelModal({
         throw new Error("認証トークンの取得に失敗しました。ページを更新してください。");
       }
 
-      const response = await fetch("http://localhost:8080/v1/subscriptions", {
+      const response = await fetch(`${API_BASE_URL}/v1/subscriptions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
