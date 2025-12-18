@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,24 +11,9 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-console.log("🔥 Firebase初期化開始");
-console.log("Firebase Config:", {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain,
-});
+// Firebase App初期化
+const app = initializeApp(firebaseConfig);
 
-let app;
-let auth;
-
-try {
-  app = initializeApp(firebaseConfig);
-  console.log("✅ Firebase App初期化成功");
-  auth = getAuth(app);
-  console.log("✅ Firebase Auth初期化成功");
-} catch (error) {
-  console.error("❌ Firebase初期化エラー:", error);
-  throw error;
-}
-
-export { auth };
+// Firebase Auth初期化
+export const auth: Auth = getAuth(app);
 
