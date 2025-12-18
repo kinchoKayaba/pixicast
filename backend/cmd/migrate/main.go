@@ -69,6 +69,12 @@ func main() {
 	}
 	log.Println("✅ Migration 005 completed")
 
+	log.Println("\n=== Running Migration 006: Update Plan Limits ===")
+	if err := runMigration006(ctx, pool); err != nil {
+		log.Fatalf("Migration 006 failed: %v", err)
+	}
+	log.Println("✅ Migration 006 completed")
+
 	log.Println("\n🎉 All migrations completed successfully!")
 }
 
@@ -254,6 +260,32 @@ CREATE INDEX IF NOT EXISTS idx_user_subscriptions_last_accessed ON user_subscrip
 	_, err := pool.Exec(ctx, sql)
 	if err != nil {
 		return fmt.Errorf("failed to create users and plan_limits: %w", err)
+	}
+
+	return nil
+}
+
+func runMigration006(ctx context.Context, pool *pgxpool.Pool) error {
+	sql := `
+-- プラン定義を更新
+DELETE FROM plan_limits;
+
+INSERT INTO plan_limits (plan_type, max_channels, display_name, price_monthly, has_favorites, has_device_sync, description) VALUES
+('free_anonymous', 5, 'Free（匿名）', NULL, false, false, 'ログイン不要・まずはお試し。最大5チャンネル登録、データ保持30日。'),
+('free_login', 20, 'Basic（ログイン）', NULL, true, true, '標準プラン。最大20チャンネル登録、データ無制限保持、マルチデバイス同期、お気に入り機能。'),
+('plus', 999999, 'Plus（課金）', 500, true, true, 'ヘビーユーザー向け。無制限チャンネル登録、全機能利用可能。')
+ON CONFLICT (plan_type) DO UPDATE SET 
+    max_channels = EXCLUDED.max_channels,
+    display_name = EXCLUDED.display_name,
+    price_monthly = EXCLUDED.price_monthly,
+    has_favorites = EXCLUDED.has_favorites,
+    has_device_sync = EXCLUDED.has_device_sync,
+    description = EXCLUDED.description;
+`
+
+	_, err := pool.Exec(ctx, sql)
+	if err != nil {
+		return fmt.Errorf("failed to update plan limits: %w", err)
 	}
 
 	return nil

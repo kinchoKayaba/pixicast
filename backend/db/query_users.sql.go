@@ -84,6 +84,72 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
+const getUserWithPlanInfo = `-- name: GetUserWithPlanInfo :one
+SELECT 
+    u.id,
+    u.firebase_uid,
+    u.plan_type,
+    u.email,
+    u.display_name,
+    u.photo_url,
+    u.is_anonymous,
+    u.last_accessed_at,
+    u.created_at,
+    u.updated_at,
+    pl.max_channels,
+    pl.display_name as plan_display_name,
+    pl.price_monthly,
+    pl.has_favorites,
+    pl.has_device_sync,
+    pl.description as plan_description
+FROM users u
+LEFT JOIN plan_limits pl ON u.plan_type = pl.plan_type
+WHERE u.id = $1
+`
+
+type GetUserWithPlanInfoRow struct {
+	ID              int64              `json:"id"`
+	FirebaseUid     string             `json:"firebase_uid"`
+	PlanType        string             `json:"plan_type"`
+	Email           pgtype.Text        `json:"email"`
+	DisplayName     pgtype.Text        `json:"display_name"`
+	PhotoUrl        pgtype.Text        `json:"photo_url"`
+	IsAnonymous     bool               `json:"is_anonymous"`
+	LastAccessedAt  pgtype.Timestamptz `json:"last_accessed_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	MaxChannels     pgtype.Int4        `json:"max_channels"`
+	PlanDisplayName pgtype.Text        `json:"plan_display_name"`
+	PriceMonthly    pgtype.Int4        `json:"price_monthly"`
+	HasFavorites    pgtype.Bool        `json:"has_favorites"`
+	HasDeviceSync   pgtype.Bool        `json:"has_device_sync"`
+	PlanDescription pgtype.Text        `json:"plan_description"`
+}
+
+func (q *Queries) GetUserWithPlanInfo(ctx context.Context, id int64) (GetUserWithPlanInfoRow, error) {
+	row := q.db.QueryRow(ctx, getUserWithPlanInfo, id)
+	var i GetUserWithPlanInfoRow
+	err := row.Scan(
+		&i.ID,
+		&i.FirebaseUid,
+		&i.PlanType,
+		&i.Email,
+		&i.DisplayName,
+		&i.PhotoUrl,
+		&i.IsAnonymous,
+		&i.LastAccessedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.MaxChannels,
+		&i.PlanDisplayName,
+		&i.PriceMonthly,
+		&i.HasFavorites,
+		&i.HasDeviceSync,
+		&i.PlanDescription,
+	)
+	return i, err
+}
+
 const listAllPlanLimits = `-- name: ListAllPlanLimits :many
 SELECT plan_type, max_channels, display_name, price_monthly, has_favorites, has_device_sync, description, created_at FROM plan_limits ORDER BY price_monthly NULLS FIRST
 `

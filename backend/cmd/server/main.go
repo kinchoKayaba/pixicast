@@ -406,6 +406,26 @@ func main() {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 	
+	// GET /v1/me - ユーザー情報とプラン情報を取得
+	mux.HandleFunc("/v1/me", func(w http.ResponseWriter, r *http.Request) {
+		// CORS処理
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
+		if r.Method == "GET" {
+			subscriptionHandler.GetMe(w, r)
+			return
+		}
+		
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+	
 	// DELETE /v1/subscriptions/{channelId}
 	// POST /v1/subscriptions/{channelId}/favorite
 	mux.HandleFunc("/v1/subscriptions/", func(w http.ResponseWriter, r *http.Request) {

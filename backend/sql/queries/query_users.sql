@@ -30,3 +30,25 @@ SELECT * FROM plan_limits ORDER BY price_monthly NULLS FIRST;
 -- name: DeleteInactiveAnonymousUsers :exec
 DELETE FROM users WHERE is_anonymous = true AND last_accessed_at < now() - INTERVAL '30 days';
 
+-- name: GetUserWithPlanInfo :one
+SELECT 
+    u.id,
+    u.firebase_uid,
+    u.plan_type,
+    u.email,
+    u.display_name,
+    u.photo_url,
+    u.is_anonymous,
+    u.last_accessed_at,
+    u.created_at,
+    u.updated_at,
+    pl.max_channels,
+    pl.display_name as plan_display_name,
+    pl.price_monthly,
+    pl.has_favorites,
+    pl.has_device_sync,
+    pl.description as plan_description
+FROM users u
+LEFT JOIN plan_limits pl ON u.plan_type = pl.plan_type
+WHERE u.id = $1;
+

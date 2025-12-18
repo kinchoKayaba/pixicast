@@ -101,16 +101,18 @@ func (h *SubscriptionHandler) CreateSubscription(w http.ResponseWriter, r *http.
 				if err != nil {
 					log.Printf("❌ Failed to count subscriptions: %v", err)
 				} else {
-					log.Printf("📊 Current subscriptions: %d / %d", count, planLimit.MaxChannels)
-					if count >= int64(planLimit.MaxChannels) {
-						log.Printf("🚫 Subscription limit reached for planType: %s", planType)
-						if planType == "free_anonymous" {
-							respondError(w, http.StatusForbidden, fmt.Sprintf("匿名ユーザーは%dチャンネルまでしか登録できません。Googleログインして無制限に登録しましょう！", planLimit.MaxChannels))
-						} else {
-							respondError(w, http.StatusForbidden, fmt.Sprintf("%sプランは%dチャンネルまでです。", planLimit.DisplayName, planLimit.MaxChannels))
-						}
-						return
+				log.Printf("📊 Current subscriptions: %d / %d", count, planLimit.MaxChannels)
+				if count >= int64(planLimit.MaxChannels) {
+					log.Printf("🚫 Subscription limit reached for planType: %s", planType)
+					if planType == "free_anonymous" {
+						respondError(w, http.StatusForbidden, fmt.Sprintf("Freeプランは%dチャンネルまでです。Googleログインして最大20チャンネル登録できるBasicプランにアップグレード！", planLimit.MaxChannels))
+					} else if planType == "free_login" {
+						respondError(w, http.StatusForbidden, fmt.Sprintf("Basicプランは%dチャンネルまでです。Plusプランで無制限登録しませんか？", planLimit.MaxChannels))
+					} else {
+						respondError(w, http.StatusForbidden, fmt.Sprintf("%sプランは%dチャンネルまでです。", planLimit.DisplayName, planLimit.MaxChannels))
 					}
+					return
+				}
 				}
 			}
 		}
@@ -701,6 +703,63 @@ func (h *SubscriptionHandler) ToggleFavorite(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
+}
+
+// GetMe はユーザー情報とプラン情報を返す
+// GET /v1/me
+func (h *SubscriptionHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Firebase認証: user_idを取得
+	userID, err := h.getUserIDFromRequest(r)
+	if err != nil {
+		log.Printf("Authentication failed: %v", err)
+		respondError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	// ユーザー情報とプラン情報を取得
+	userWithPlan, err := h.queries.GetUserWithPlanInfo(ctx, userID)
+	if err != nil {
+		log.Printf("Failed to get user with plan info: %v", err)
+		respondError(w, http.StatusInternalServerError, "failed to get user info")
+		return
+	}
+
+	// 現在の登録チャンネル数を取得
+	count, err := h.queries.CountUserSubscriptions(ctx, userID)
+	if err != nil {
+		log.Printf("Failed to count subscriptions: %v", err)
+		respondError(w, http.StatusInternalServerError, "failed to count subscriptions")
+		return
+	}
+
+	// レスポンスを作成
+	response := map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":               userWithPlan.ID,
+			"firebase_uid":     userWithPlan.FirebaseUid,
+			"plan_type":        userWithPlan.PlanType,
+			"email":            userWithPlan.Email,
+			"display_name":     userWithPlan.DisplayName,
+			"photo_url":        userWithPlan.PhotoUrl,
+			"is_anonymous":     userWithPlan.IsAnonymous,
+		},
+		"plan": map[string]interface{}{
+			"type":             userWithPlan.PlanType,
+			"display_name":     userWithPlan.PlanDisplayName,
+			"max_channels":     userWithPlan.MaxChannels,
+			"price_monthly":    userWithPlan.PriceMonthly,
+			"has_favorites":    userWithPlan.HasFavorites,
+			"has_device_sync":  userWithPlan.HasDeviceSync,
+			"description":      userWithPlan.PlanDescription,
+		},
+		"current_channels": count,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }
 
 // respondError はエラーレスポンスを返す
