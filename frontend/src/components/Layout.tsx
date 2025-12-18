@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Sidebar from "./Sidebar";
 import MenuButton from "./MenuButton";
 
@@ -10,13 +10,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <MenuButton onClick={() => setSidebarOpen(!sidebarOpen)} />
-      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Suspense fallback={<div>Loading...</div>}>
+        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      </Suspense>
       <main
         className={`transition-all duration-300 ${
           sidebarOpen ? "ml-64" : "ml-16"
         }`}
       >
-        {children}
+        <Suspense fallback={<div>Loading...</div>}>
+          {children}
+        </Suspense>
       </main>
     </>
   );
