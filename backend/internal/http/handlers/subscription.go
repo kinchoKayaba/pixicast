@@ -596,12 +596,19 @@ func (h *SubscriptionHandler) handlePodcastSubscription(ctx context.Context, w h
 		return
 	}
 
+	// Apple Podcasts URLを取得（iTunes Search APIでタイトル検索）
+	applePodcastURL := ""
+	if podcastFeed.Title != "" {
+		applePodcastURL = h.fetchApplePodcastsURL(ctx, podcastFeed.Title)
+	}
+	
 	source, err := h.queries.UpsertSource(ctx, db.UpsertSourceParams{
 		PlatformID: "podcast", ExternalID: feedURL,
 		Handle: pgtype.Text{},
 		DisplayName: pgtype.Text{String: podcastFeed.Title, Valid: true},
 		ThumbnailUrl: pgtype.Text{String: podcastFeed.ImageURL, Valid: true},
 		UploadsPlaylistID: pgtype.Text{},
+		ApplePodcastUrl: pgtype.Text{String: applePodcastURL, Valid: applePodcastURL != ""},
 	})
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "failed to create subscription")
@@ -783,5 +790,44 @@ func respondError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
+}
+
+// fetchApplePodcastsURL はiTunes Search APIでApple Podcasts URLを取得
+func (h *SubscriptionHandler) fetchApplePodcastsURL(ctx context.Context, podcastTitle string) string {
+	searchURL := fmt.Sprintf("https://itunes.apple.com/search?term=%s&country=jp&entity=podcast&limit=1", url.QueryEscape(podcastTitle))
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", searchURL, nil)
+	if err != nil {
+		log.Printf("Failed to create iTunes Search request: %v", err)
+		return ""
+	}
+	
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("iTunes Search API error: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+	
+	var result struct {
+		ResultCount int `json:"resultCount"`
+		Results []struct {
+			CollectionViewURL string `json:"collectionViewUrl"`
+		} `json:"results"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		log.Printf("Failed to decode iTunes Search response: %v", err)
+		return ""
+	}
+	
+	if result.ResultCount > 0 && result.Results[0].CollectionViewURL != "" {
+		log.Printf("✅ Found Apple Podcasts URL for '%s': %s", podcastTitle, result.Results[0].CollectionViewURL)
+		return result.Results[0].CollectionViewURL
+	}
+	
+	log.Printf("⚠️  Apple Podcasts URL not found for '%s'", podcastTitle)
+	return ""
 }
 
