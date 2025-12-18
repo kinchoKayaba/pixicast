@@ -84,11 +84,12 @@ func FetchAndSaveTwitchVideosSince(
 		}
 
 		// 配信中のライブストリームと重複しているVODは除外
-		// （VODの作成時刻が、いずれかのライブストリーム開始時刻の1時間以内）
+		// （VODの作成時刻が、いずれかのライブストリーム開始時刻の6時間以内）
+		// ※ Twitchでは配信中にタイトルが変わることがあるため、時間範囲を広めに設定
 		isDuplicate := false
 		for _, liveStartTime := range liveStreamStartTimes {
 			timeDiff := video.CreatedAt.Sub(liveStartTime)
-			if timeDiff.Abs() < 1*time.Hour {
+			if timeDiff.Abs() < 6*time.Hour {
 				log.Printf("⏭️  Skipping VOD (duplicate of live stream): %s", video.Title)
 				isDuplicate = true
 				break
