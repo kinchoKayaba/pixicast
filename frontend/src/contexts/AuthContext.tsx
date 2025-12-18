@@ -6,6 +6,7 @@ import {
   User,
   signInAnonymously,
   signInWithPopup,
+  linkWithPopup,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -66,15 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log("🔐 Googleログイン開始, 現在のユーザー:", user?.uid, "isAnonymous:", user?.isAnonymous);
       
-      // 匿名ユーザーの場合は、まずログアウトしてから新規ログイン
-      if (user?.isAnonymous) {
-        console.log("🗑️ 匿名アカウントを削除してからGoogleログイン");
-        await firebaseSignOut(auth);
-      }
-      
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      console.log("✅ Googleログイン成功:", result.user.uid, "email:", result.user.email);
+      
+      // 匿名ユーザーの場合は、linkWithPopupで同じUIDのまま昇格
+      if (user?.isAnonymous) {
+        console.log("⬆️ 匿名ユーザーを正規ユーザーに昇格（同じUID維持）");
+        const result = await linkWithPopup(user, provider);
+        console.log("✅ アカウントリンク成功:", result.user.uid, "email:", result.user.email);
+        console.log("🎉 UIDは維持されたまま正規ユーザーに昇格しました");
+      } else {
+        // 既に正規ユーザーの場合は通常のログイン
+        const result = await signInWithPopup(auth, provider);
+        console.log("✅ Googleログイン成功:", result.user.uid, "email:", result.user.email);
+      }
     } catch (error) {
       console.error("❌ Googleログインエラー:", error);
       throw error;
