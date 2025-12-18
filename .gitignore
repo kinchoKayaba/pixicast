@@ -18,6 +18,10 @@ coverage/
 # Environment variables (絶対コミットしない！)
 .env.*
 !.env.*.example
+!.env.example
+
+# Firebase Admin SDK credentials (絶対コミットしない！)
+*firebase-adminsdk*.json
 
 # Debug logs
 npm-debug.log*
