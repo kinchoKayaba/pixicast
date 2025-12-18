@@ -429,12 +429,22 @@ func main() {
 	// DELETE /v1/subscriptions/{channelId}
 	// POST /v1/subscriptions/{channelId}/favorite
 	mux.HandleFunc("/v1/subscriptions/", func(w http.ResponseWriter, r *http.Request) {
+		// CORS処理
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		
 		// POST で /favorite で終わる場合はToggleFavorite
 		if r.Method == "POST" && len(r.URL.Path) > 0 && r.URL.Path[len(r.URL.Path)-9:] == "/favorite" {
 			subscriptionHandler.ToggleFavorite(w, r)
 			return
 		}
-		if r.Method == "DELETE" || r.Method == "OPTIONS" {
+		if r.Method == "DELETE" {
 			subscriptionHandler.DeleteSubscription(w, r)
 			return
 		}

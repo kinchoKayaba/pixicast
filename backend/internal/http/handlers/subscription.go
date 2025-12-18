@@ -468,14 +468,20 @@ func (h *SubscriptionHandler) DeleteSubscription(w http.ResponseWriter, r *http.
 
 	// URLからチャンネルIDを取得 (/v1/subscriptions/{channelId})
 	path := r.URL.Path
-	parts := strings.Split(strings.TrimPrefix(path, "/v1/subscriptions/"), "/")
-	log.Printf("Path parts: %v", parts)
+	channelIDEncoded := strings.TrimPrefix(path, "/v1/subscriptions/")
 	
-	if len(parts) == 0 || parts[0] == "" {
+	if channelIDEncoded == "" {
 		respondError(w, http.StatusBadRequest, "Channel ID is required")
 		return
 	}
-	channelID := parts[0]
+	
+	// URLデコード
+	channelID, err := url.PathUnescape(channelIDEncoded)
+	if err != nil {
+		log.Printf("❌ Failed to decode channel ID: %v", err)
+		respondError(w, http.StatusBadRequest, "Invalid channel ID")
+		return
+	}
 	log.Printf("Deleting channel: %s", channelID)
 
 	ctx := context.Background()
@@ -491,8 +497,8 @@ func (h *SubscriptionHandler) DeleteSubscription(w http.ResponseWriter, r *http.
 	for _, platform := range platforms {
 		source, findErr = h.queries.GetSourceByExternalID(ctx, db.GetSourceByExternalIDParams{
 			PlatformID: platform,
-			ExternalID: channelID,
-		})
+		ExternalID: channelID,
+	})
 		if findErr == nil {
 			log.Printf("✅ Found source on platform: %s", platform)
 			found = true
@@ -661,12 +667,22 @@ func (h *SubscriptionHandler) ToggleFavorite(w http.ResponseWriter, r *http.Requ
 	}
 
 	path := r.URL.Path
-	parts := strings.Split(strings.TrimPrefix(path, "/v1/subscriptions/"), "/")
-	if len(parts) < 2 || parts[0] == "" {
+	// /v1/subscriptions/{channelId}/favorite から channelId を抽出
+	channelIDEncoded := strings.TrimPrefix(path, "/v1/subscriptions/")
+	channelIDEncoded = strings.TrimSuffix(channelIDEncoded, "/favorite")
+	
+	if channelIDEncoded == "" {
 		respondError(w, http.StatusBadRequest, "Channel ID is required")
 		return
 	}
-	channelID := parts[0]
+	
+	// URLデコード
+	channelID, err := url.PathUnescape(channelIDEncoded)
+	if err != nil {
+		log.Printf("❌ Failed to decode channel ID: %v", err)
+		respondError(w, http.StatusBadRequest, "Invalid channel ID")
+		return
+	}
 
 	ctx := context.Background()
 	
@@ -688,8 +704,8 @@ func (h *SubscriptionHandler) ToggleFavorite(w http.ResponseWriter, r *http.Requ
 	}
 	
 	if !found {
-		respondError(w, http.StatusNotFound, "Channel not found")
-		return
+			respondError(w, http.StatusNotFound, "Channel not found")
+			return
 	}
 
 	_, err = h.queries.ToggleSubscriptionFavorite(ctx, db.ToggleSubscriptionFavoriteParams{

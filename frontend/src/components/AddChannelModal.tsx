@@ -105,6 +105,10 @@ export default function AddChannelModal({
 
       // 成功時
       setInput("");
+      
+      // サイドバーに更新を通知
+      window.dispatchEvent(new Event("channels-updated"));
+      
       onSuccess();
       onClose();
     } catch (err) {
@@ -132,9 +136,9 @@ export default function AddChannelModal({
         {/* ヘッダー */}
         <div className="flex items-center justify-between p-6 border-b">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">
-              チャンネルを追加
-            </h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            チャンネルを追加
+          </h2>
             {planInfo && (
               <div className="mt-1 flex items-center gap-2">
                 <span
@@ -248,7 +252,7 @@ export default function AddChannelModal({
                   ? "例: kato_junichi0817"
                   : "例: https://feeds.buzzsprout.com/xxxxx.rss"
               }
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder:text-gray-400"
               required
               disabled={submitting || authLoading}
             />

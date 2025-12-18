@@ -11,7 +11,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <>
       <MenuButton onClick={() => setSidebarOpen(!sidebarOpen)} />
       <Suspense fallback={<div>Loading...</div>}>
-        <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+      <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
       </Suspense>
       <main
         className={`transition-all duration-300 ${
@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }`}
       >
         <Suspense fallback={<div>Loading...</div>}>
-          {children}
+        {children}
         </Suspense>
       </main>
     </>

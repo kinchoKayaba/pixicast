@@ -97,7 +97,7 @@ export default function ChannelsPage() {
       }
 
       const response = await fetch(
-        `${API_BASE_URL}/v1/subscriptions/${channelId}`,
+        `${API_BASE_URL}/v1/subscriptions/${encodeURIComponent(channelId)}`,
         {
           method: "DELETE",
           headers: {
@@ -118,6 +118,9 @@ export default function ChannelsPage() {
 
       // リストを更新（UIの即座の反映用）
       setChannels(channels.filter((ch) => ch.channel_id !== channelId));
+
+      // サイドバーに更新を通知
+      window.dispatchEvent(new Event("channels-updated"));
 
       // チャンネル管理画面にとどまる
       console.log("✅ チャンネルを削除しました");

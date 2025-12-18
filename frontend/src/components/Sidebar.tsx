@@ -86,6 +86,19 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     fetchChannels();
   }, [pathname, user]);
 
+  // チャンネル更新イベントをリスン
+  useEffect(() => {
+    const handleChannelsUpdate = () => {
+      console.log("🔄 Sidebar: Channels update event received");
+      fetchChannels();
+    };
+
+    window.addEventListener("channels-updated", handleChannelsUpdate);
+    return () => {
+      window.removeEventListener("channels-updated", handleChannelsUpdate);
+    };
+  }, [user]);
+
   // プラットフォーム別にグループ化
   const groupedChannels = channels.reduce((acc, channel) => {
     const platform = channel.platform;
@@ -142,14 +155,14 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         {/* ホーム */}
         <Link
           href="/"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 ${
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-900 ${
             pathname === "/" && !selectedChannelId
               ? "bg-gray-100 font-semibold"
               : ""
           }`}
         >
           <svg
-            className="w-5 h-5 flex-shrink-0"
+            className="w-5 h-5 flex-shrink-0 text-gray-900"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -214,7 +227,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                 <Link
                   key={channel.channel_id}
                   href={`/?channel=${channel.channel_id}`}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 ${
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-900 ${
                     selectedChannelId === channel.channel_id
                       ? "bg-gray-100 font-semibold"
                       : ""
@@ -226,7 +239,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
                     className="w-6 h-6 rounded-full flex-shrink-0"
                   />
                   {isOpen && (
-                    <span className="text-sm text-gray-700 truncate">
+                    <span className="text-sm text-gray-900 truncate">
                       {channel.display_name}
                     </span>
                   )}
@@ -239,12 +252,12 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
         {isOpen && <div className="border-t border-gray-200 my-2" />}
         <Link
           href="/channels"
-          className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 ${
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-900 ${
             pathname === "/channels" ? "bg-gray-100 font-semibold" : ""
           }`}
         >
           <svg
-            className="w-5 h-5 flex-shrink-0"
+            className="w-5 h-5 flex-shrink-0 text-gray-900"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
