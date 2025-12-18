@@ -63,6 +63,8 @@ type Source struct {
 	FetchStatus string             `json:"fetch_status"`
 	CreatedAt   pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	// Apple Podcasts URL (for podcast platform only)
+	ApplePodcastUrl pgtype.Text `json:"apple_podcast_url"`
 }
 
 type User struct {

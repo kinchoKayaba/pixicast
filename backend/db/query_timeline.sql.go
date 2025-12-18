@@ -348,17 +348,6 @@ WHERE
         $4::text[] IS NULL
         OR s.external_id = ANY($4::text[])
     )
-    -- Twitch: 同じソースで6時間以内にライブ配信がある場合、VODを除外
-    AND NOT (
-        e.platform_id = 'twitch' 
-        AND e.type != 'live'
-        AND EXISTS (
-            SELECT 1 FROM events e2
-            WHERE e2.source_id = e.source_id
-            AND e2.type = 'live'
-            AND ABS(EXTRACT(EPOCH FROM (COALESCE(e2.start_at, e2.published_at) - COALESCE(e.start_at, e.published_at)))) < 21600
-        )
-    )
 ORDER BY 
     COALESCE(e.start_at, e.published_at) DESC NULLS LAST,
     CASE WHEN e.type = 'live' THEN 0 ELSE 1 END ASC

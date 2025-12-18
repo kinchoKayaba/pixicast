@@ -21,6 +21,8 @@ type PodcastFeed struct {
 	Description string
 	ImageURL    string
 	FeedURL     string
+	Link        string // Podcast全体のページURL
+	AppleID     string // Apple Podcasts ID（id1234567890）
 }
 
 type PodcastEpisode struct {
@@ -107,18 +109,38 @@ func (c *Client) ParseFeed(ctx context.Context, feedURL string) (*PodcastFeed, [
 		Title:       feed.Title,
 		Description: feed.Description,
 		FeedURL:     feedURL,
+		Link:        feed.Link, // Podcast全体のページURL
 	}
 	if feed.Image != nil {
 		podcastFeed.ImageURL = feed.Image.URL
 	}
+	
+	// Apple Podcasts IDを取得（RSS feedのiTunes拡張から）
+	if feed.ITunesExt != nil {
+		// ITunesExtからApple IDを検索
+		// feedURLからも検索可能
+		c.extractAppleID(feed, podcastFeed)
+	}
 
 	var episodes []PodcastEpisode
 	for _, item := range feed.Items {
+		// URLを取得: 
+		// 1. item.Link（エピソードページ）
+		// 2. feed.Link（Podcast全体のページ）
+		// 3. Enclosure URL（音声ファイル - 最終手段）
+		episodeURL := item.Link
+		if episodeURL == "" {
+			episodeURL = feed.Link // Podcast全体のページを使用
+		}
+		if episodeURL == "" && len(item.Enclosures) > 0 {
+			episodeURL = item.Enclosures[0].URL // 音声ファイルURL（最終手段）
+		}
+		
 		episode := PodcastEpisode{
 			GUID:        item.GUID,
 			Title:       item.Title,
 			Description: item.Description,
-			URL:         item.Link,
+			URL:         episodeURL,
 		}
 
 		if item.PublishedParsed != nil {
@@ -139,5 +161,41 @@ func (c *Client) ParseFeed(ctx context.Context, feedURL string) (*PodcastFeed, [
 	}
 
 	return podcastFeed, episodes, nil
+}
+
+// extractAppleID は Feed URLからApple Podcasts IDを取得
+func (c *Client) extractAppleID(feed *gofeed.Feed, podcastFeed *PodcastFeed) {
+	// iTunes Search APIでfeed URLからApple IDを検索
+	if podcastFeed.FeedURL == "" {
+		return
+	}
+	
+	// iTunes Search API: /search?entity=podcast&attribute=feedUrl&term={feedURL}
+	searchURL := fmt.Sprintf("https://itunes.apple.com/search?entity=podcast&attribute=feedUrl&term=%s", podcastFeed.FeedURL)
+	
+	req, err := http.NewRequest("GET", searchURL, nil)
+	if err != nil {
+		return
+	}
+	
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	
+	var result struct {
+		Results []struct {
+			CollectionID int64 `json:"collectionId"`
+		} `json:"results"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return
+	}
+	
+	if len(result.Results) > 0 && result.Results[0].CollectionID > 0 {
+		podcastFeed.AppleID = fmt.Sprintf("id%d", result.Results[0].CollectionID)
+	}
 }
 

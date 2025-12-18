@@ -12,7 +12,7 @@ import (
 )
 
 const getSourceByExternalID = `-- name: GetSourceByExternalID :one
-SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at FROM sources
+SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url FROM sources
 WHERE platform_id = $1 AND external_id = $2
 `
 
@@ -39,12 +39,13 @@ func (q *Queries) GetSourceByExternalID(ctx context.Context, arg GetSourceByExte
 		&i.FetchStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplePodcastUrl,
 	)
 	return i, err
 }
 
 const getSourceByID = `-- name: GetSourceByID :one
-SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at FROM sources
+SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url FROM sources
 WHERE id = $1
 `
 
@@ -66,12 +67,13 @@ func (q *Queries) GetSourceByID(ctx context.Context, id pgtype.UUID) (Source, er
 		&i.FetchStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplePodcastUrl,
 	)
 	return i, err
 }
 
 const listSources = `-- name: ListSources :many
-SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at FROM sources
+SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url FROM sources
 ORDER BY created_at DESC
 LIMIT $1
 `
@@ -100,6 +102,7 @@ func (q *Queries) ListSources(ctx context.Context, limit int32) ([]Source, error
 			&i.FetchStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApplePodcastUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -112,7 +115,7 @@ func (q *Queries) ListSources(ctx context.Context, limit int32) ([]Source, error
 }
 
 const listSourcesByPlatform = `-- name: ListSourcesByPlatform :many
-SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at FROM sources
+SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url FROM sources
 WHERE platform_id = $1
 ORDER BY created_at DESC
 LIMIT $2
@@ -147,6 +150,7 @@ func (q *Queries) ListSourcesByPlatform(ctx context.Context, arg ListSourcesByPl
 			&i.FetchStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApplePodcastUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -159,7 +163,7 @@ func (q *Queries) ListSourcesByPlatform(ctx context.Context, arg ListSourcesByPl
 }
 
 const listSourcesForFetch = `-- name: ListSourcesForFetch :many
-SELECT s.id, s.platform_id, s.external_id, s.handle, s.display_name, s.thumbnail_url, s.uploads_playlist_id, s.last_fetched_at, s.fetch_status, s.created_at, s.updated_at
+SELECT s.id, s.platform_id, s.external_id, s.handle, s.display_name, s.thumbnail_url, s.uploads_playlist_id, s.last_fetched_at, s.fetch_status, s.created_at, s.updated_at, s.apple_podcast_url
 FROM sources s
 WHERE 
     s.fetch_status = 'ok'
@@ -195,6 +199,7 @@ func (q *Queries) ListSourcesForFetch(ctx context.Context, limit int32) ([]Sourc
 			&i.FetchStatus,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ApplePodcastUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -213,7 +218,7 @@ SET
     last_fetched_at = now(),
     updated_at = now()
 WHERE id = $1
-RETURNING id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at
+RETURNING id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url
 `
 
 type UpdateSourceFetchStatusParams struct {
@@ -239,6 +244,7 @@ func (q *Queries) UpdateSourceFetchStatus(ctx context.Context, arg UpdateSourceF
 		&i.FetchStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplePodcastUrl,
 	)
 	return i, err
 }
@@ -265,7 +271,7 @@ DO UPDATE SET
     uploads_playlist_id = EXCLUDED.uploads_playlist_id,
     fetch_status = EXCLUDED.fetch_status,
     updated_at = now()
-RETURNING id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at
+RETURNING id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url
 `
 
 type UpsertSourceParams struct {
@@ -304,6 +310,7 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Sou
 		&i.FetchStatus,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ApplePodcastUrl,
 	)
 	return i, err
 }

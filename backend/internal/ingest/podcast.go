@@ -21,6 +21,17 @@ func FetchAndSavePodcastEpisodesSince(
 ) error {
 	log.Printf("Fetching podcast episodes from: %s (since %s)", feedURL, publishedAfter)
 
+	// SourceからApple Podcasts URLを取得
+	source, err := queries.GetSourceByID(ctx, sourceID)
+	if err != nil {
+		return fmt.Errorf("failed to get source: %w", err)
+	}
+	
+	applePodcastURL := ""
+	if source.ApplePodcastUrl.Valid {
+		applePodcastURL = source.ApplePodcastUrl.String
+	}
+
 	_, episodes, err := podcastClient.ParseFeed(ctx, feedURL)
 	if err != nil {
 		return fmt.Errorf("failed to parse feed: %w", err)
@@ -37,6 +48,12 @@ func FetchAndSavePodcastEpisodesSince(
 			continue
 		}
 
+		// エピソードURLを決定: Apple Podcasts URL > episode.URL
+		episodeURL := episode.URL
+		if applePodcastURL != "" {
+			episodeURL = applePodcastURL // Apple Podcasts番組ページを優先
+		}
+
 		_, err = queries.UpsertEvent(ctx, db.UpsertEventParams{
 			PlatformID:      "podcast",
 			SourceID:        sourceID,
@@ -47,7 +64,7 @@ func FetchAndSavePodcastEpisodesSince(
 			StartAt:         pgtype.Timestamptz{},
 			EndAt:           pgtype.Timestamptz{},
 			PublishedAt:     pgtype.Timestamptz{Time: episode.PublishedAt, Valid: true},
-			Url:             episode.URL,
+			Url:             episodeURL, // Apple Podcasts URLまたはフォールバック
 			ImageUrl:        pgtype.Text{String: episode.ImageURL, Valid: episode.ImageURL != ""},
 			Metrics:         nil,
 			Duration:        pgtype.Text{String: episode.Duration, Valid: episode.Duration != ""},

@@ -67,7 +67,7 @@ func main() {
 	}
 
 	log.Printf("📺 Found %d sources to fetch", len(sources))
-	
+
 	// 並列処理用のカウンター
 	var totalSuccess, totalFailed atomic.Int32
 	
@@ -86,11 +86,11 @@ func main() {
 			// セマフォで並行数を制限
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
-			
-			displayName := "Unknown"
+
+		displayName := "Unknown"
 			if src.DisplayName.Valid {
 				displayName = src.DisplayName.String
-			}
+		}
 
 			var err error
 			var publishedAfter string
@@ -106,9 +106,9 @@ func main() {
 				}
 				log.Printf("📺 [YouTube] %s (since %s)", displayName, publishedAfter)
 				err = ingest.FetchAndSaveChannelVideosSince(
-					ctx,
-					queries,
-					youtubeClient,
+			ctx,
+			queries,
+			youtubeClient,
 					src.ID,
 					src.ExternalID,
 					0,
@@ -159,15 +159,15 @@ func main() {
 					podcastClient,
 					src.ID,
 					src.ExternalID,
-					publishedAfter,
-				)
+			publishedAfter,
+		)
 
 			default:
 				log.Printf("⚠️ Unknown platform: %s", src.PlatformID)
 				return
 			}
 
-			if err != nil {
+		if err != nil {
 				log.Printf("❌ Failed to fetch content for %s (%s): %v", displayName, src.ExternalID, err)
 				totalFailed.Add(1)
 				return

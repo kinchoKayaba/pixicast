@@ -7,6 +7,8 @@ sql:
       - "sql/migrations/003_add_duration_to_events.sql"
       - "sql/migrations/004_add_is_favorite.sql"
       - "sql/migrations/005_create_users_and_plans.sql"
+      - "sql/migrations/006_update_plan_limits.sql"
+      - "sql/migrations/007_add_apple_podcast_url.sql"
     queries:
       # クエリファイルを分割して管理
       - "sql/queries/query_sources.sql"
