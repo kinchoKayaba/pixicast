@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDyrWPMYGJCYfPyBarRnyGe-9e_GtZ1AIA",
-  authDomain: "pixicast-924a4.firebaseapp.com",
-  projectId: "pixicast-924a4",
-  storageBucket: "pixicast-924a4.firebasestorage.app",
-  messagingSenderId: "741846019456",
-  appId: "1:741846019456:web:47b246bbad9e3cb637e565",
-  measurementId: "G-CH3LBGKEZ2"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 console.log("🔥 Firebase初期化開始");

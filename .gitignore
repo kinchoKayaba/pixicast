@@ -17,6 +17,7 @@ coverage/
 
 # Environment variables (絶対コミットしない！)
 .env.*
+!.env.*.example
 
 # Debug logs
 npm-debug.log*
