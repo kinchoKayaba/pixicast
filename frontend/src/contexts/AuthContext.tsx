@@ -69,12 +69,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const provider = new GoogleAuthProvider();
       
-      // 匿名ユーザーの場合は、linkWithPopupで同じUIDのまま昇格
+      // 匿名ユーザーの場合は、linkWithPopupで同じUIDのまま昇格を試みる
       if (user?.isAnonymous) {
         console.log("⬆️ 匿名ユーザーを正規ユーザーに昇格（同じUID維持）");
-        const result = await linkWithPopup(user, provider);
-        console.log("✅ アカウントリンク成功:", result.user.uid, "email:", result.user.email);
-        console.log("🎉 UIDは維持されたまま正規ユーザーに昇格しました");
+        try {
+          const result = await linkWithPopup(user, provider);
+          console.log("✅ アカウントリンク成功:", result.user.uid, "email:", result.user.email);
+          console.log("🎉 UIDは維持されたまま正規ユーザーに昇格しました");
+        } catch (linkError: any) {
+          // credential-already-in-use の場合は、既存アカウントでログイン
+          if (linkError?.code === 'auth/credential-already-in-use') {
+            console.log("⚠️ このGoogleアカウントは既に存在します。既存アカウントでログインします");
+            // 匿名ユーザーを削除してから既存アカウントでログイン
+            await firebaseSignOut(auth);
+            const result = await signInWithPopup(auth, provider);
+            console.log("✅ 既存アカウントでログイン成功:", result.user.uid, "email:", result.user.email);
+          } else {
+            throw linkError;
+          }
+        }
       } else {
         // 既に正規ユーザーの場合は通常のログイン
         const result = await signInWithPopup(auth, provider);
