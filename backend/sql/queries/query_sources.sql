@@ -12,10 +12,11 @@ INSERT INTO sources (
     display_name,
     thumbnail_url,
     uploads_playlist_id,
+    apple_podcast_url,
     fetch_status,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, 'ok', now()
+    $1, $2, $3, $4, $5, $6, $7, 'ok', now()
 )
 ON CONFLICT (platform_id, external_id)
 DO UPDATE SET
@@ -23,6 +24,7 @@ DO UPDATE SET
     display_name = EXCLUDED.display_name,
     thumbnail_url = EXCLUDED.thumbnail_url,
     uploads_playlist_id = EXCLUDED.uploads_playlist_id,
+    apple_podcast_url = EXCLUDED.apple_podcast_url,
     fetch_status = EXCLUDED.fetch_status,
     updated_at = now()
 RETURNING *;

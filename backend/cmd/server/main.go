@@ -135,7 +135,7 @@ func (s *TimelineServer) GetTimeline(
 	// 2. DBの型(db.ListTimelineRow) を gRPCの型(pixicastv1.Program) に変換
 	var responsePrograms []*pixicastv1.Program
 	for _, event := range timelineData {
-		// 放送中かどうかの簡易判定
+		// 放送中かどうかの判定
 		now := time.Now()
 		isLive := event.Type == "live" && 
 			event.StartAt.Valid && 

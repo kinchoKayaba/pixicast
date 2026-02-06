@@ -1,0 +1,10 @@
+<svg width="640" height="360" viewBox="0 0 640 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="640" height="360" fill="#E5E7EB"/>
+  <g opacity="0.5">
+    <rect x="245" y="130" width="150" height="100" rx="8" fill="#9CA3AF"/>
+    <circle cx="295" cy="160" r="15" fill="#6B7280"/>
+    <path d="M320 160 L355 185 L355 135 Z" fill="#6B7280"/>
+  </g>
+  <text x="320" y="260" font-family="Arial, sans-serif" font-size="18" fill="#6B7280" text-anchor="middle">サムネイル未設定</text>
+</svg>
+

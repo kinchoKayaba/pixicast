@@ -31,11 +31,13 @@ func FetchAndSaveTwitchVideosSince(
 
 	// 1. まず現在配信中のライブストリームを取得
 	var liveStreamStartTimes []time.Time // ライブストリームの開始時刻リスト
+	var currentLiveStreamIDs []string     // 現在配信中のstream IDリスト
 	streams, err := twitchClient.GetStreams(ctx, userID)
 	if err != nil {
 		log.Printf("⚠️ Failed to get live streams (non-fatal): %v", err)
 	} else {
 		for _, stream := range streams {
+			currentLiveStreamIDs = append(currentLiveStreamIDs, stream.ID)
 			// ライブ配信用のサムネイル
 			thumbnailURL := strings.ReplaceAll(stream.ThumbnailURL, "{width}", "640")
 			thumbnailURL = strings.ReplaceAll(thumbnailURL, "{height}", "360")
@@ -99,10 +101,8 @@ func FetchAndSaveTwitchVideosSince(
 			continue
 		}
 
+		// VODは常に"video"タイプとして保存（配信終了後のアーカイブのため）
 		eventType := "video"
-		if video.Type == "live" {
-			eventType = "live"
-		}
 
 		metrics := []byte(fmt.Sprintf(`{"views": %d}`, video.ViewCount))
 

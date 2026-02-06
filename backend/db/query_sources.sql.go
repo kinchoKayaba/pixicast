@@ -258,10 +258,11 @@ INSERT INTO sources (
     display_name,
     thumbnail_url,
     uploads_playlist_id,
+    apple_podcast_url,
     fetch_status,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, 'ok', now()
+    $1, $2, $3, $4, $5, $6, $7, 'ok', now()
 )
 ON CONFLICT (platform_id, external_id)
 DO UPDATE SET
@@ -269,6 +270,7 @@ DO UPDATE SET
     display_name = EXCLUDED.display_name,
     thumbnail_url = EXCLUDED.thumbnail_url,
     uploads_playlist_id = EXCLUDED.uploads_playlist_id,
+    apple_podcast_url = EXCLUDED.apple_podcast_url,
     fetch_status = EXCLUDED.fetch_status,
     updated_at = now()
 RETURNING id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url
@@ -281,6 +283,7 @@ type UpsertSourceParams struct {
 	DisplayName       pgtype.Text `json:"display_name"`
 	ThumbnailUrl      pgtype.Text `json:"thumbnail_url"`
 	UploadsPlaylistID pgtype.Text `json:"uploads_playlist_id"`
+	ApplePodcastUrl   pgtype.Text `json:"apple_podcast_url"`
 }
 
 // query_sources.sql
@@ -296,6 +299,7 @@ func (q *Queries) UpsertSource(ctx context.Context, arg UpsertSourceParams) (Sou
 		arg.DisplayName,
 		arg.ThumbnailUrl,
 		arg.UploadsPlaylistID,
+		arg.ApplePodcastUrl,
 	)
 	var i Source
 	err := row.Scan(

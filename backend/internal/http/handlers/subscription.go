@@ -830,4 +830,3 @@ func (h *SubscriptionHandler) fetchApplePodcastsURL(ctx context.Context, podcast
 	log.Printf("⚠️  Apple Podcasts URL not found for '%s'", podcastTitle)
 	return ""
 }
-

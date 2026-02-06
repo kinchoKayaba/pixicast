@@ -102,8 +102,13 @@ export default function Timeline() {
         limit: 50,
       });
 
-      // 最新順にソート
+      // ライブ配信を最優先、その後最新順にソート
       const sortedPrograms = [...res.programs].sort((a, b) => {
+        // まずライブ配信かどうかで判定
+        if (a.isLive && !b.isLive) return -1;
+        if (!a.isLive && b.isLive) return 1;
+
+        // 両方ライブまたは両方非ライブの場合、時刻でソート
         const timeA = new Date(a.startAt || a.publishedAt || 0).getTime();
         const timeB = new Date(b.startAt || b.publishedAt || 0).getTime();
         return timeB - timeA;
@@ -187,6 +192,11 @@ export default function Timeline() {
       // 既存のプログラムに追加
       const newPrograms = [...programs, ...res.programs];
       const sortedPrograms = newPrograms.sort((a, b) => {
+        // まずライブ配信かどうかで判定
+        if (a.isLive && !b.isLive) return -1;
+        if (!a.isLive && b.isLive) return 1;
+
+        // 両方ライブまたは両方非ライブの場合、時刻でソート
         const timeA = new Date(a.startAt || a.publishedAt || 0).getTime();
         const timeB = new Date(b.startAt || b.publishedAt || 0).getTime();
         return timeB - timeA;
@@ -539,10 +549,7 @@ export default function Timeline() {
                             }`}
                           >
                             <img
-                              src={
-                                program.imageUrl ||
-                                "https://placehold.jp/150x150.png"
-                              }
+                              src={program.imageUrl || "/no-thumbnail.svg"}
                               alt={program.title}
                               className="object-cover w-full h-full"
                             />
