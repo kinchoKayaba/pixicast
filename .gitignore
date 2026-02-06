@@ -70,4 +70,4 @@ postgres_data/
 # 自動生成コードをコミットしたくない場合は以下をコメントアウト解除してください。
 # 最初はコミットしてしまう（＝Git管理する）方がトラブルが少ないので、このままでOKです。
 # backend/gen/
-# frontend/src/gen/
+# frontend/src/gen/backend/tmp/
