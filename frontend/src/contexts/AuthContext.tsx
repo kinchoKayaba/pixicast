@@ -17,6 +17,7 @@ interface AuthContextType {
   loading: boolean;
   isAnonymous: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInAnonymously: () => Promise<void>;
   signOut: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
 }
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isAnonymous: false,
   signInWithGoogle: async () => {},
+  signInAnonymously: async () => {},
   signOut: async () => {},
   getIdToken: async () => null,
 });
@@ -63,12 +65,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const handleSignInAnonymously = async () => {
+    try {
+      console.log("🔐 匿名ログイン開始");
+      const result = await signInAnonymously(auth);
+      console.log("✅ 匿名ログイン成功:", result.user.uid);
+      setUser(result.user);
+    } catch (error) {
+      console.error("❌ 匿名ログインエラー:", error);
+      throw error;
+    }
+  };
+
   const signInWithGoogle = async () => {
     try {
       console.log("🔐 Googleログイン開始, 現在のユーザー:", user?.uid, "isAnonymous:", user?.isAnonymous);
-      
+
       const provider = new GoogleAuthProvider();
-      
+
       // 匿名ユーザーの場合は、linkWithPopupで同じUIDのまま昇格を試みる
       if (user?.isAnonymous) {
         console.log("⬆️ 匿名ユーザーを正規ユーザーに昇格（同じUID維持）");
@@ -131,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAnonymous: user?.isAnonymous ?? false,
         signInWithGoogle,
+        signInAnonymously: handleSignInAnonymously,
         signOut,
         getIdToken,
       }}
