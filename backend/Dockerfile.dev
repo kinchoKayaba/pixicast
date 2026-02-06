@@ -1,0 +1,50 @@
+# 開発用Dockerfile (ホットリロード対応)
+FROM golang:1.25.4-alpine
+
+# 開発ツールをインストール
+RUN apk add --no-cache git
+
+# Air (Goホットリロードツール) をインストール
+RUN go install github.com/air-verse/air@latest
+
+WORKDIR /app
+
+# 依存関係をコピーしてダウンロード
+COPY go.mod go.sum ./
+RUN go mod download
+
+# ソースコードをコピー（ボリュームマウントで上書きされる）
+COPY . .
+
+# Airの設定ファイルを作成
+RUN echo 'root = "." \n\
+tmp_dir = "tmp" \n\
+\n\
+[build] \n\
+  cmd = "go build -o ./tmp/server ./cmd/server/main.go" \n\
+  bin = "tmp/server" \n\
+  include_ext = ["go", "tpl", "tmpl", "html"] \n\
+  exclude_dir = ["assets", "tmp", "vendor", "frontend", "node_modules"] \n\
+  include_dir = [] \n\
+  exclude_file = [] \n\
+  delay = 1000 \n\
+  stop_on_error = false \n\
+  send_interrupt = false \n\
+  kill_delay = 500 \n\
+\n\
+[log] \n\
+  time = true \n\
+\n\
+[color] \n\
+  main = "magenta" \n\
+  watcher = "cyan" \n\
+  build = "yellow" \n\
+  runner = "green" \n\
+\n\
+[misc] \n\
+  clean_on_exit = true' > .air.toml
+
+EXPOSE 8080
+
+# Airでホットリロード起動
+CMD ["air", "-c", ".air.toml"]

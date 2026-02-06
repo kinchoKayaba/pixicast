@@ -1,0 +1,16 @@
+# 開発用Dockerfile (Next.js hot reload)
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 依存関係をコピーしてインストール
+COPY package*.json ./
+RUN npm ci
+
+# ソースコードをコピー（ボリュームマウントで上書きされる）
+COPY . .
+
+EXPOSE 3000
+
+# Next.js開発サーバー起動
+CMD ["npm", "run", "dev"]

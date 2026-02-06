@@ -61,6 +61,11 @@ go.work
 # --- Buf / gRPC ---
 .buf/
 
+# --- Docker ---
+.env
+!.env.docker
+postgres_data/
+
 # --- Generated Code (Optional) ---
 # 自動生成コードをコミットしたくない場合は以下をコメントアウト解除してください。
 # 最初はコミットしてしまう（＝Git管理する）方がトラブルが少ないので、このままでOKです。

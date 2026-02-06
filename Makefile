@@ -1,39 +1,93 @@
-.PHONY: help dev dev-backend dev-frontend build build-backend build-frontend clean test lint batch-cleanup batch-fetch batch-live install
+.PHONY: help dev dev-local dev-backend dev-frontend docker-up docker-down docker-build docker-logs docker-restart docker-clean build build-backend build-frontend clean test lint batch-cleanup batch-fetch batch-live install
 
 # デフォルトターゲット
 help:
 	@echo "Pixicast Development Commands:"
 	@echo ""
-	@echo "Development:"
-	@echo "  make dev              - Start both backend and frontend dev servers"
+	@echo "🐳 Docker Development (Recommended):"
+	@echo "  make dev              - Start Docker environment (PostgreSQL + Backend + Frontend)"
+	@echo "  make docker-down      - Stop Docker environment"
+	@echo "  make docker-build     - Rebuild Docker images"
+	@echo "  make docker-logs      - View Docker logs"
+	@echo "  make docker-restart   - Restart Docker environment"
+	@echo "  make docker-clean     - Clean Docker volumes and images"
+	@echo ""
+	@echo "💻 Local Development:"
+	@echo "  make dev-local        - Start local dev servers (without Docker)"
 	@echo "  make dev-backend      - Start backend server only (port 8080)"
 	@echo "  make dev-frontend     - Start frontend dev server only (port 3000)"
 	@echo ""
-	@echo "Build:"
+	@echo "🏗️  Build:"
 	@echo "  make build            - Build both backend and frontend"
 	@echo "  make build-backend    - Build backend only"
 	@echo "  make build-frontend   - Build frontend only"
 	@echo ""
-	@echo "Batch Jobs:"
+	@echo "⚙️  Batch Jobs:"
 	@echo "  make batch-cleanup    - Run cleanup anonymous users job"
 	@echo "  make batch-fetch      - Run fetch videos job"
 	@echo "  make batch-live       - Run update live status job"
 	@echo ""
-	@echo "Testing & Linting:"
+	@echo "🧪 Testing & Linting:"
 	@echo "  make test             - Run all tests"
 	@echo "  make test-backend     - Run backend tests"
 	@echo "  make lint             - Run linters"
 	@echo "  make lint-backend     - Run Go linter"
 	@echo "  make lint-frontend    - Run frontend linter"
 	@echo ""
-	@echo "Utilities:"
+	@echo "🛠️  Utilities:"
 	@echo "  make install          - Install all dependencies"
 	@echo "  make clean            - Clean build artifacts"
 	@echo "  make migrate          - Run database migrations"
 
-# Development
-dev:
-	@echo "Starting development servers..."
+# Docker Development (NEW DEFAULT)
+dev: docker-up
+
+docker-up:
+	@echo "🐳 Starting Docker environment..."
+	@if [ ! -f .env ]; then \
+		echo "⚠️  .env file not found. Copying from .env.docker..."; \
+		cp .env.docker .env; \
+		echo "✅ Created .env file. Please update it with your API keys if needed."; \
+	fi
+	@docker compose up -d
+	@echo ""
+	@echo "✅ Docker environment started!"
+	@echo "📺 Frontend: http://localhost:3000"
+	@echo "🔌 Backend:  http://localhost:8080"
+	@echo "🗄️  Database: postgresql://pixicast:pixicast_dev_password@localhost:5432/pixicast"
+	@echo ""
+	@echo "📋 Useful commands:"
+	@echo "  make docker-logs    - View logs"
+	@echo "  make docker-down    - Stop containers"
+	@echo "  make docker-restart - Restart containers"
+
+docker-down:
+	@echo "🛑 Stopping Docker environment..."
+	@docker compose down
+	@echo "✅ Docker environment stopped"
+
+docker-build:
+	@echo "🔨 Rebuilding Docker images..."
+	@docker compose build --no-cache
+	@echo "✅ Docker images rebuilt"
+
+docker-logs:
+	@docker compose logs -f
+
+docker-restart:
+	@echo "🔄 Restarting Docker environment..."
+	@docker compose restart
+	@echo "✅ Docker environment restarted"
+
+docker-clean:
+	@echo "🧹 Cleaning Docker volumes and images..."
+	@docker compose down -v
+	@docker system prune -f
+	@echo "✅ Docker cleanup complete"
+
+# Local Development (Original)
+dev-local:
+	@echo "💻 Starting local development servers..."
 	@make -j2 dev-backend dev-frontend
 
 dev-backend:

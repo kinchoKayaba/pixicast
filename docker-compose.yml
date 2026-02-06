@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database (ローカル開発用)
+  postgres:
+    image: postgres:16-alpine
+    container_name: pixicast-db
+    environment:
+      POSTGRES_USER: pixicast
+      POSTGRES_PASSWORD: pixicast_dev_password
+      POSTGRES_DB: pixicast
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/sql/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pixicast"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pixicast-network
+
+  # Backend (Go API Server with hot reload)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: pixicast-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: "postgresql://pixicast:pixicast_dev_password@postgres:5432/pixicast?sslmode=disable"
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      TWITCH_CLIENT_ID: ${TWITCH_CLIENT_ID}
+      TWITCH_CLIENT_SECRET: ${TWITCH_CLIENT_SECRET}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/pixicast-firebase-adminsdk-fbsvc-8e0eba3cbe.json
+      PORT: 8080
+    volumes:
+      - ./backend:/app
+      - go_modules:/go/pkg/mod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pixicast-network
+    restart: unless-stopped
+
+  # Frontend (Next.js with hot reload)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: pixicast-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - pixicast-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  go_modules:
+
+networks:
+  pixicast-network:
+    driver: bridge
