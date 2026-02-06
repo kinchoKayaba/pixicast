@@ -14,6 +14,7 @@ import (
 	"github.com/kinchoKayaba/pixicast/backend/internal/auth"
 	"github.com/kinchoKayaba/pixicast/backend/internal/ingest"
 	"github.com/kinchoKayaba/pixicast/backend/internal/podcast"
+	"github.com/kinchoKayaba/pixicast/backend/internal/radiko"
 	"github.com/kinchoKayaba/pixicast/backend/internal/twitch"
 	"github.com/kinchoKayaba/pixicast/backend/internal/youtube"
 )
@@ -24,16 +25,18 @@ type SubscriptionHandler struct {
 	youtube      *youtube.Client
 	twitch       *twitch.Client
 	podcast      *podcast.Client
+	radiko       *radiko.Client
 	firebaseAuth *auth.FirebaseAuth
 }
 
 // NewSubscriptionHandler はハンドラを作成
-func NewSubscriptionHandler(queries *db.Queries, youtubeClient *youtube.Client, twitchClient *twitch.Client, podcastClient *podcast.Client, firebaseAuth *auth.FirebaseAuth) *SubscriptionHandler {
+func NewSubscriptionHandler(queries *db.Queries, youtubeClient *youtube.Client, twitchClient *twitch.Client, podcastClient *podcast.Client, radikoClient *radiko.Client, firebaseAuth *auth.FirebaseAuth) *SubscriptionHandler {
 	return &SubscriptionHandler{
 		queries:      queries,
 		youtube:      youtubeClient,
 		twitch:       twitchClient,
 		podcast:      podcastClient,
+		radiko:       radikoClient,
 		firebaseAuth: firebaseAuth,
 	}
 }
@@ -126,8 +129,8 @@ func (h *SubscriptionHandler) CreateSubscription(w http.ResponseWriter, r *http.
 	}
 
 	// バリデーション
-	if req.Platform != "youtube" && req.Platform != "twitch" && req.Platform != "podcast" {
-		respondError(w, http.StatusBadRequest, "only youtube, twitch, and podcast platforms are supported")
+	if req.Platform != "youtube" && req.Platform != "twitch" && req.Platform != "podcast" && req.Platform != "radiko" {
+		respondError(w, http.StatusBadRequest, "only youtube, twitch, podcast, and radiko platforms are supported")
 		return
 	}
 	if req.Input == "" {
@@ -143,6 +146,8 @@ func (h *SubscriptionHandler) CreateSubscription(w http.ResponseWriter, r *http.
 		h.handleTwitchSubscription(ctx, w, req, userID)
 	case "podcast":
 		h.handlePodcastSubscription(ctx, w, req, userID)
+	case "radiko":
+		h.handleRadikoSubscription(ctx, w, req, userID)
 	default:
 		respondError(w, http.StatusBadRequest, fmt.Sprintf("unsupported platform: %s", req.Platform))
 	}
@@ -635,6 +640,58 @@ func (h *SubscriptionHandler) handlePodcastSubscription(ctx context.Context, w h
 			UserID: userID, Platform: "podcast", SourceID: source.ID.String(),
 			ChannelID: feedURL, Handle: "", DisplayName: podcastFeed.Title,
 			ThumbnailURL: podcastFeed.ImageURL, Enabled: subscription.Enabled,
+		},
+	})
+}
+
+// handleRadikoSubscription はRadiko購読処理
+func (h *SubscriptionHandler) handleRadikoSubscription(ctx context.Context, w http.ResponseWriter, req CreateSubscriptionRequest, userID int64) {
+	// 入力形式: "TBS" (ステーションID) または "TBS:JP13" (ステーションID:エリアID)
+	parts := strings.Split(req.Input, ":")
+	stationID := strings.TrimSpace(parts[0])
+	areaID := "JP13" // デフォルト: 東京
+	if len(parts) > 1 {
+		areaID = strings.TrimSpace(parts[1])
+	}
+
+	log.Printf("📻 Radiko subscription request: station=%s, area=%s", stationID, areaID)
+
+	// ステーション情報を取得してDBに保存
+	sourceID, err := ingest.FetchAndSaveRadikoStation(ctx, h.queries, h.radiko, stationID, areaID)
+	if err != nil {
+		log.Printf("Failed to get Radiko station: %v", err)
+		respondError(w, http.StatusNotFound, "Radiko station not found")
+		return
+	}
+
+	// ソース情報を取得
+	source, err := h.queries.GetSourceByID(ctx, sourceID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to get source")
+		return
+	}
+
+	subscription, err := h.queries.UpsertUserSubscription(ctx, db.UpsertUserSubscriptionParams{
+		UserID: userID, SourceID: source.ID, Enabled: true, Priority: 0,
+	})
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "failed to create subscription")
+		return
+	}
+
+	go func() {
+		since := "2025-01-01T00:00:00Z"
+		ingest.FetchAndSaveRadikoPrograms(context.Background(), h.queries, h.radiko, source.ID, stationID, since)
+	}()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(CreateSubscriptionResponse{
+		Subscription: SubscriptionData{
+			UserID: userID, Platform: "radiko", SourceID: source.ID.String(),
+			ChannelID: stationID, Handle: stationID,
+			DisplayName: source.DisplayName.String, ThumbnailURL: source.ThumbnailUrl.String,
+			Enabled: subscription.Enabled,
 		},
 	})
 }
