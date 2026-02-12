@@ -10,7 +10,7 @@ interface AddChannelModalProps {
   onSuccess: () => void;
 }
 
-type Platform = "youtube" | "twitch" | "podcast";
+type Platform = "youtube" | "twitch" | "podcast" | "radiko";
 
 interface PlanInfo {
   type: string;
@@ -193,11 +193,11 @@ export default function AddChannelModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               プラットフォーム
             </label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setPlatform("youtube")}
-                className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
                   platform === "youtube"
                     ? "bg-red-600 text-white border-red-600"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
@@ -208,7 +208,7 @@ export default function AddChannelModal({
               <button
                 type="button"
                 onClick={() => setPlatform("twitch")}
-                className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
                   platform === "twitch"
                     ? "bg-purple-600 text-white border-purple-600"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
@@ -219,13 +219,24 @@ export default function AddChannelModal({
               <button
                 type="button"
                 onClick={() => setPlatform("podcast")}
-                className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
                   platform === "podcast"
                     ? "bg-orange-600 text-white border-orange-600"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 🎙️ Podcast
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlatform("radiko")}
+                className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  platform === "radiko"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                📻 Radiko
               </button>
             </div>
           </div>
@@ -239,6 +250,7 @@ export default function AddChannelModal({
               {platform === "youtube" && "YouTube URL、@ハンドル、またはチャンネルID"}
               {platform === "twitch" && "Twitch URL またはユーザー名"}
               {platform === "podcast" && "Podcast RSS URL"}
+              {platform === "radiko" && "Radiko ステーションID"}
             </label>
             <input
               id="channel-input"
@@ -250,7 +262,9 @@ export default function AddChannelModal({
                   ? "例: @junchannel または UCxxxx..."
                   : platform === "twitch"
                   ? "例: kato_junichi0817"
-                  : "例: https://feeds.buzzsprout.com/xxxxx.rss"
+                  : platform === "podcast"
+                  ? "例: https://feeds.buzzsprout.com/xxxxx.rss"
+                  : "例: TBS または TBS:JP13"
               }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder:text-gray-400"
               required
@@ -278,6 +292,13 @@ export default function AddChannelModal({
               <ul className="space-y-1">
                 <li>• https://feeds.buzzsprout.com/xxxxx.rss</li>
                 <li>• https://anchor.fm/s/xxxxx/podcast/rss</li>
+              </ul>
+            )}
+            {platform === "radiko" && (
+              <ul className="space-y-1">
+                <li>• TBS（東京のTBSラジオ）</li>
+                <li>• TBS:JP13（エリア指定）</li>
+                <li>• QRR（文化放送）、LFR（ニッポン放送）</li>
               </ul>
             )}
           </div>
