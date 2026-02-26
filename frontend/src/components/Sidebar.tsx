@@ -154,9 +154,9 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
       <nav className="p-2 overflow-y-auto h-[calc(100vh-64px)]">
         {/* ホーム */}
         <Link
-          href="/"
+          href="/timeline"
           className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-900 ${
-            pathname === "/" && !selectedChannelId
+            pathname === "/timeline" && !selectedChannelId
               ? "bg-gray-100 font-semibold"
               : ""
           }`}
@@ -226,7 +226,7 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
               platformChannels.map((channel) => (
                 <Link
                   key={channel.channel_id}
-                  href={`/?channel=${channel.channel_id}`}
+                  href={`/timeline?channel=${channel.channel_id}`}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-900 ${
                     selectedChannelId === channel.channel_id
                       ? "bg-gray-100 font-semibold"

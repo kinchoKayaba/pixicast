@@ -539,8 +539,16 @@ func (h *SubscriptionHandler) DeleteSubscription(w http.ResponseWriter, r *http.
 
 // handleTwitchSubscription はTwitch購読処理
 func (h *SubscriptionHandler) handleTwitchSubscription(ctx context.Context, w http.ResponseWriter, req CreateSubscriptionRequest, userID int64) {
-	login := strings.TrimPrefix(strings.TrimPrefix(req.Input, "https://www.twitch.tv/"), "@")
-	user, err := h.twitch.GetUserByLogin(ctx, login)
+	input := strings.TrimPrefix(strings.TrimPrefix(req.Input, "https://www.twitch.tv/"), "@")
+
+	// 数値のみの場合はユーザーID、それ以外はlogin名として扱う
+	var user *twitch.TwitchUser
+	var err error
+	if isNumeric(input) {
+		user, err = h.twitch.GetUserByID(ctx, input)
+	} else {
+		user, err = h.twitch.GetUserByLogin(ctx, input)
+	}
 	if err != nil {
 		log.Printf("Failed to get Twitch user: %v", err)
 		respondError(w, http.StatusNotFound, "Twitch user not found")
@@ -840,6 +848,16 @@ func (h *SubscriptionHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// isNumeric は文字列が数値のみかチェック
+func isNumeric(s string) bool {
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return len(s) > 0
 }
 
 // respondError はエラーレスポンスを返す

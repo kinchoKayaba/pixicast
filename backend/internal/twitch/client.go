@@ -132,6 +132,45 @@ func (c *Client) GetUserByLogin(ctx context.Context, login string) (*TwitchUser,
 	return &usersResp.Data[0], nil
 }
 
+func (c *Client) GetUserByID(ctx context.Context, id string) (*TwitchUser, error) {
+	if err := c.ensureAccessToken(ctx); err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf("https://api.twitch.tv/helix/users?id=%s", id)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Client-ID", c.clientID)
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("user request failed: %s, body: %s", resp.Status, string(body))
+	}
+
+	var usersResp struct {
+		Data []TwitchUser `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&usersResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(usersResp.Data) == 0 {
+		return nil, fmt.Errorf("user not found: %s", id)
+	}
+
+	return &usersResp.Data[0], nil
+}
+
 func (c *Client) GetVideos(ctx context.Context, userID string, first int) ([]TwitchVideo, error) {
 	if err := c.ensureAccessToken(ctx); err != nil {
 		return nil, err
@@ -165,6 +204,56 @@ func (c *Client) GetVideos(ctx context.Context, userID string, first int) ([]Twi
 	}
 
 	return videosResp.Data, nil
+}
+
+// TwitchSearchChannel は検索結果のチャンネル
+type TwitchSearchChannel struct {
+	ID               string `json:"id"`
+	DisplayName      string `json:"display_name"`
+	BroadcasterLogin string `json:"broadcaster_login"`
+	ThumbnailURL     string `json:"thumbnail_url"`
+	IsLive           bool   `json:"is_live"`
+	GameName         string `json:"game_name"`
+}
+
+// SearchChannels はTwitch Helix APIでチャンネルを検索
+func (c *Client) SearchChannels(ctx context.Context, query string, first int) ([]TwitchSearchChannel, error) {
+	if err := c.ensureAccessToken(ctx); err != nil {
+		return nil, err
+	}
+
+	if first <= 0 {
+		first = 10
+	}
+
+	reqURL := fmt.Sprintf("https://api.twitch.tv/helix/search/channels?query=%s&first=%d&live_only=false", query, first)
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create search request: %w", err)
+	}
+
+	req.Header.Set("Client-ID", c.clientID)
+	req.Header.Set("Authorization", "Bearer "+c.accessToken)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search channels: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("search channels failed: %s, body: %s", resp.Status, string(body))
+	}
+
+	var searchResp struct {
+		Data []TwitchSearchChannel `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+		return nil, fmt.Errorf("failed to decode search response: %w", err)
+	}
+
+	return searchResp.Data, nil
 }
 
 // TwitchStream は配信中のストリーム情報

@@ -42,7 +42,7 @@ func FetchAndSaveRadikoPrograms(
 		}
 
 		// イベントをDBに保存
-		err := queries.UpsertEvent(ctx, db.UpsertEventParams{
+		_, err := queries.UpsertEvent(ctx, db.UpsertEventParams{
 			PlatformID:      "radiko",
 			SourceID:        sourceID,
 			ExternalEventID: prog.ID,

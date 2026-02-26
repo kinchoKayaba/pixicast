@@ -208,6 +208,112 @@ func (c *Client) GetChannelVideosSince(ctx context.Context, channelID string, ma
 	return allResults, nil
 }
 
+// ChannelSearchResult はチャンネル検索結果
+type ChannelSearchResult struct {
+	ChannelID       string
+	Handle          string
+	DisplayName     string
+	ThumbnailURL    string
+	SubscriberCount int64
+}
+
+// SearchChannels はキーワードでチャンネルを検索
+// search.list (100 units) + channels.list (1 unit) で enrichment
+func (c *Client) SearchChannels(ctx context.Context, query string, maxResults int64) ([]ChannelSearchResult, error) {
+	if maxResults <= 0 {
+		maxResults = 10
+	}
+
+	// search.list でチャンネル検索 (100 units)
+	call := c.service.Search.List([]string{"snippet"})
+	call = call.Q(query)
+	call = call.Type("channel")
+	call = call.MaxResults(maxResults)
+	call = call.RegionCode("JP")
+
+	response, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to search channels: %v", err)
+	}
+
+	if len(response.Items) == 0 {
+		return nil, nil
+	}
+
+	// チャンネルIDを収集して channels.list で enrichment (1 unit)
+	channelIDs := make([]string, 0, len(response.Items))
+	for _, item := range response.Items {
+		if item.Id != nil && item.Id.ChannelId != "" {
+			channelIDs = append(channelIDs, item.Id.ChannelId)
+		}
+	}
+
+	// channels.list で subscriberCount, handle を取得
+	enrichCall := c.service.Channels.List([]string{"snippet", "statistics"})
+	enrichCall = enrichCall.Id(channelIDs...)
+	enrichResp, err := enrichCall.Do()
+	if err != nil {
+		// enrichment 失敗時は search.list の結果のみで返す
+		var results []ChannelSearchResult
+		for _, item := range response.Items {
+			if item.Id == nil || item.Id.ChannelId == "" {
+				continue
+			}
+			thumbnailURL := ""
+			if item.Snippet.Thumbnails != nil && item.Snippet.Thumbnails.High != nil {
+				thumbnailURL = item.Snippet.Thumbnails.High.Url
+			}
+			results = append(results, ChannelSearchResult{
+				ChannelID:    item.Id.ChannelId,
+				DisplayName:  item.Snippet.Title,
+				ThumbnailURL: thumbnailURL,
+			})
+		}
+		return results, nil
+	}
+
+	// enrichment データをマップ化
+	channelMap := make(map[string]*youtube.Channel)
+	for _, ch := range enrichResp.Items {
+		channelMap[ch.Id] = ch
+	}
+
+	var results []ChannelSearchResult
+	for _, item := range response.Items {
+		if item.Id == nil || item.Id.ChannelId == "" {
+			continue
+		}
+
+		result := ChannelSearchResult{
+			ChannelID:   item.Id.ChannelId,
+			DisplayName: item.Snippet.Title,
+		}
+
+		// サムネイル
+		if item.Snippet.Thumbnails != nil && item.Snippet.Thumbnails.High != nil {
+			result.ThumbnailURL = item.Snippet.Thumbnails.High.Url
+		}
+
+		// enrichment データがあれば使用
+		if ch, ok := channelMap[item.Id.ChannelId]; ok {
+			if ch.Statistics != nil {
+				result.SubscriberCount = int64(ch.Statistics.SubscriberCount)
+			}
+			if ch.Snippet != nil && ch.Snippet.CustomUrl != "" {
+				handle := ch.Snippet.CustomUrl
+				if len(handle) > 0 && handle[0] == '@' {
+					handle = handle[1:]
+				}
+				result.Handle = handle
+			}
+		}
+
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
 // ChannelDetails はチャンネルの詳細情報
 type ChannelDetails struct {
 	ChannelID         string

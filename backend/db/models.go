@@ -8,6 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// API使用量追跡（YouTube等）
+type ApiQuotaUsage struct {
+	ID           pgtype.UUID        `json:"id"`
+	Date         pgtype.Date        `json:"date"`
+	PlatformID   string             `json:"platform_id"`
+	Endpoint     string             `json:"endpoint"`
+	QuotaCost    int32              `json:"quota_cost"`
+	RequestCount int32              `json:"request_count"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
 // タイムライン項目（動画/配信/予定等）
 type Event struct {
 	ID              pgtype.UUID `json:"id"`
@@ -65,6 +76,35 @@ type Source struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	// Apple Podcasts URL (for podcast platform only)
 	ApplePodcastUrl pgtype.Text `json:"apple_podcast_url"`
+}
+
+// チャンネル優先度管理（バッチ処理最適化用）
+type SourcePriority struct {
+	SourceID        pgtype.UUID    `json:"source_id"`
+	SubscriberCount int32          `json:"subscriber_count"`
+	PopularityRatio pgtype.Numeric `json:"popularity_ratio"`
+	// high=1h更新, medium=3h更新, low=6h更新
+	PriorityLevel string `json:"priority_level"`
+	// 更新間隔（分）: high=60, medium=180, low=360
+	UpdateIntervalMinutes int32              `json:"update_interval_minutes"`
+	LastCalculatedAt      pgtype.Timestamptz `json:"last_calculated_at"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+}
+
+// 更新スケジュール管理
+type UpdateSchedule struct {
+	ID            pgtype.UUID        `json:"id"`
+	SourceID      pgtype.UUID        `json:"source_id"`
+	ScheduledAt   pgtype.Timestamptz `json:"scheduled_at"`
+	PriorityLevel string             `json:"priority_level"`
+	// pending=待機中, running=実行中, completed=完了, failed=失敗
+	Status       string             `json:"status"`
+	StartedAt    pgtype.Timestamptz `json:"started_at"`
+	CompletedAt  pgtype.Timestamptz `json:"completed_at"`
+	ErrorMessage pgtype.Text        `json:"error_message"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {

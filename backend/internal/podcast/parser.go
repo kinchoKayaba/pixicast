@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"time"
 
@@ -40,6 +41,53 @@ func NewClient() *Client {
 		parser:     gofeed.NewParser(),
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 	}
+}
+
+// PodcastSearchResult はiTunes Search APIの検索結果
+type PodcastSearchResult struct {
+	CollectionID   int64  `json:"collectionId"`
+	TrackName      string `json:"trackName"`
+	ArtistName     string `json:"artistName"`
+	ArtworkURL     string `json:"artworkUrl600"`
+	FeedURL        string `json:"feedUrl"`
+	TrackCount     int    `json:"trackCount"`
+	CollectionName string `json:"collectionName"`
+}
+
+// SearchPodcasts はiTunes Search APIでポッドキャストを検索
+func (c *Client) SearchPodcasts(ctx context.Context, term string, limit int) ([]PodcastSearchResult, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+
+	apiURL := fmt.Sprintf("https://itunes.apple.com/search?term=%s&media=podcast&country=jp&limit=%d",
+		url.QueryEscape(term), limit)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create iTunes search request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search podcasts: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("iTunes search returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		ResultCount int                   `json:"resultCount"`
+		Results     []PodcastSearchResult `json:"results"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode iTunes search response: %w", err)
+	}
+
+	return result.Results, nil
 }
 
 // ResolveFeedURL はApple PodcastsのURLから実際のRSSフィードURLを取得
