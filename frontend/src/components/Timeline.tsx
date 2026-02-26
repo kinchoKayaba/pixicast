@@ -21,6 +21,7 @@ export default function Timeline() {
   const searchParams = useSearchParams();
   const selectedChannelId = searchParams.get("channel");
   const [selectedChannelName, setSelectedChannelName] = useState<string>("");
+  const [selectedChannelPlatform, setSelectedChannelPlatform] = useState<string>("");
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const { user, getIdToken, isAnonymous, signInWithGoogle } = useAuth();
@@ -85,8 +86,10 @@ export default function Timeline() {
           (sub: { channel_id: string }) => sub.channel_id === selectedChannelId
         );
         setSelectedChannelName(foundChannel?.display_name || "");
+        setSelectedChannelPlatform(foundChannel?.platform || "");
       } else {
         setSelectedChannelName("");
+        setSelectedChannelPlatform("");
       }
 
       console.log("📺 表示チャンネル:", channelIds);
@@ -307,9 +310,11 @@ export default function Timeline() {
     }
   };
 
-  // 個別ページの場合、最初のプログラムからプラットフォームを取得
+  // 個別ページの場合、サブスクリプションのplatformを優先（プログラム0件でも正しく表示）
   const selectedPlatform =
-    selectedChannelId && programs.length > 0 ? programs[0].platformName : null;
+    selectedChannelId
+      ? selectedChannelPlatform || (programs.length > 0 ? programs[0].platformName : null)
+      : null;
 
   // プログラムをフィルタリング
   const filteredPrograms = programs.filter((program) => {

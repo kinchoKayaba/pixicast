@@ -71,3 +71,5 @@ postgres_data/
 # 最初はコミットしてしまう（＝Git管理する）方がトラブルが少ないので、このままでOKです。
 # backend/gen/
 # frontend/src/gen/backend/tmp/
+backend/server
+frontend/tsconfig.tsbuildinfo

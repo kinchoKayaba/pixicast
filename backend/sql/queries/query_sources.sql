@@ -87,3 +87,40 @@ WHERE
 ORDER BY s.last_fetched_at ASC NULLS FIRST
 LIMIT $1;
 
+-- ============================================================================
+-- SearchSources: キーワードでソースを検索（全プラットフォーム）
+-- ============================================================================
+-- name: SearchSources :many
+SELECT * FROM sources
+WHERE
+    (display_name ILIKE '%' || @query::TEXT || '%')
+    OR (handle ILIKE '%' || @query::TEXT || '%')
+ORDER BY display_name ASC
+LIMIT @max_results;
+
+-- ============================================================================
+-- SearchSourcesByPlatform: プラットフォーム指定でキーワード検索
+-- ============================================================================
+-- name: SearchSourcesByPlatform :many
+SELECT * FROM sources
+WHERE
+    platform_id = @platform_id
+    AND (
+        (display_name ILIKE '%' || @query::TEXT || '%')
+        OR (handle ILIKE '%' || @query::TEXT || '%')
+    )
+ORDER BY display_name ASC
+LIMIT @max_results;
+
+-- ============================================================================
+-- PopularSources: Pixicast内の人気チャンネル（購読者数順）
+-- ============================================================================
+-- name: PopularSources :many
+SELECT s.*, COUNT(us.user_id) as subscriber_count
+FROM sources s
+JOIN user_subscriptions us ON s.id = us.source_id
+WHERE us.enabled = true
+GROUP BY s.id
+ORDER BY subscriber_count DESC
+LIMIT @max_results;
+

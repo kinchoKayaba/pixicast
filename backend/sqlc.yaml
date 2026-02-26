@@ -9,12 +9,16 @@ sql:
       - "sql/migrations/005_create_users_and_plans.sql"
       - "sql/migrations/006_update_plan_limits.sql"
       - "sql/migrations/007_add_apple_podcast_url.sql"
+      - "sql/migrations/008_add_source_priority.sql"
+      - "sql/migrations/009_add_radiko_platform.sql"
+      - "sql/migrations/010_add_podcast_platform.sql"
     queries:
       # クエリファイルを分割して管理
       - "sql/queries/query_sources.sql"
       - "sql/queries/query_subscriptions.sql"
       - "sql/queries/query_timeline.sql"
       - "sql/queries/query_users.sql"
+      - "sql/queries/query_priority.sql"
     engine: "postgresql"
     gen:
       go:

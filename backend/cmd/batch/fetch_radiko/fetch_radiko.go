@@ -45,7 +45,10 @@ func main() {
 	radikoClient := radiko.NewClient(areaID)
 
 	// Radiko対応のソースを取得
-	sources, err := queries.ListSourcesByPlatform(ctx, "radiko")
+	sources, err := queries.ListSourcesByPlatform(ctx, db.ListSourcesByPlatformParams{
+		PlatformID: "radiko",
+		Limit:      100,
+	})
 	if err != nil {
 		log.Printf("⚠️  Failed to list Radiko sources: %v (まだRadiko局が登録されていない可能性があります)", err)
 		log.Println("📻 エリアの全ラジオ局を取得してデモ実行します...")

@@ -211,6 +211,173 @@ func (q *Queries) ListSourcesForFetch(ctx context.Context, limit int32) ([]Sourc
 	return items, nil
 }
 
+const popularSources = `-- name: PopularSources :many
+SELECT s.id, s.platform_id, s.external_id, s.handle, s.display_name, s.thumbnail_url, s.uploads_playlist_id, s.last_fetched_at, s.fetch_status, s.created_at, s.updated_at, s.apple_podcast_url, COUNT(us.user_id) as subscriber_count
+FROM sources s
+JOIN user_subscriptions us ON s.id = us.source_id
+WHERE us.enabled = true
+GROUP BY s.id
+ORDER BY subscriber_count DESC
+LIMIT $1
+`
+
+type PopularSourcesRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	PlatformID        string             `json:"platform_id"`
+	ExternalID        string             `json:"external_id"`
+	Handle            pgtype.Text        `json:"handle"`
+	DisplayName       pgtype.Text        `json:"display_name"`
+	ThumbnailUrl      pgtype.Text        `json:"thumbnail_url"`
+	UploadsPlaylistID pgtype.Text        `json:"uploads_playlist_id"`
+	LastFetchedAt     pgtype.Timestamptz `json:"last_fetched_at"`
+	FetchStatus       string             `json:"fetch_status"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	ApplePodcastUrl   pgtype.Text        `json:"apple_podcast_url"`
+	SubscriberCount   int64              `json:"subscriber_count"`
+}
+
+// ============================================================================
+// PopularSources: Pixicast内の人気チャンネル（購読者数順）
+// ============================================================================
+func (q *Queries) PopularSources(ctx context.Context, maxResults int32) ([]PopularSourcesRow, error) {
+	rows, err := q.db.Query(ctx, popularSources, maxResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PopularSourcesRow{}
+	for rows.Next() {
+		var i PopularSourcesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlatformID,
+			&i.ExternalID,
+			&i.Handle,
+			&i.DisplayName,
+			&i.ThumbnailUrl,
+			&i.UploadsPlaylistID,
+			&i.LastFetchedAt,
+			&i.FetchStatus,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApplePodcastUrl,
+			&i.SubscriberCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchSources = `-- name: SearchSources :many
+SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url FROM sources
+WHERE
+    (display_name ILIKE '%' || $1::TEXT || '%')
+    OR (handle ILIKE '%' || $1::TEXT || '%')
+ORDER BY display_name ASC
+LIMIT $2
+`
+
+type SearchSourcesParams struct {
+	Query      string `json:"query"`
+	MaxResults int32  `json:"max_results"`
+}
+
+// ============================================================================
+// SearchSources: キーワードでソースを検索（全プラットフォーム）
+// ============================================================================
+func (q *Queries) SearchSources(ctx context.Context, arg SearchSourcesParams) ([]Source, error) {
+	rows, err := q.db.Query(ctx, searchSources, arg.Query, arg.MaxResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Source{}
+	for rows.Next() {
+		var i Source
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlatformID,
+			&i.ExternalID,
+			&i.Handle,
+			&i.DisplayName,
+			&i.ThumbnailUrl,
+			&i.UploadsPlaylistID,
+			&i.LastFetchedAt,
+			&i.FetchStatus,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApplePodcastUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchSourcesByPlatform = `-- name: SearchSourcesByPlatform :many
+SELECT id, platform_id, external_id, handle, display_name, thumbnail_url, uploads_playlist_id, last_fetched_at, fetch_status, created_at, updated_at, apple_podcast_url FROM sources
+WHERE
+    platform_id = $1
+    AND (
+        (display_name ILIKE '%' || $2::TEXT || '%')
+        OR (handle ILIKE '%' || $2::TEXT || '%')
+    )
+ORDER BY display_name ASC
+LIMIT $3
+`
+
+type SearchSourcesByPlatformParams struct {
+	PlatformID string `json:"platform_id"`
+	Query      string `json:"query"`
+	MaxResults int32  `json:"max_results"`
+}
+
+// ============================================================================
+// SearchSourcesByPlatform: プラットフォーム指定でキーワード検索
+// ============================================================================
+func (q *Queries) SearchSourcesByPlatform(ctx context.Context, arg SearchSourcesByPlatformParams) ([]Source, error) {
+	rows, err := q.db.Query(ctx, searchSourcesByPlatform, arg.PlatformID, arg.Query, arg.MaxResults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Source{}
+	for rows.Next() {
+		var i Source
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlatformID,
+			&i.ExternalID,
+			&i.Handle,
+			&i.DisplayName,
+			&i.ThumbnailUrl,
+			&i.UploadsPlaylistID,
+			&i.LastFetchedAt,
+			&i.FetchStatus,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ApplePodcastUrl,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateSourceFetchStatus = `-- name: UpdateSourceFetchStatus :one
 UPDATE sources
 SET

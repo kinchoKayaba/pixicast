@@ -25,6 +25,7 @@ import (
 	"github.com/kinchoKayaba/pixicast/backend/internal/auth"
 	"github.com/kinchoKayaba/pixicast/backend/internal/http/handlers"
 	"github.com/kinchoKayaba/pixicast/backend/internal/podcast"
+	"github.com/kinchoKayaba/pixicast/backend/internal/radiko"
 	"github.com/kinchoKayaba/pixicast/backend/internal/twitch"
 	"github.com/kinchoKayaba/pixicast/backend/internal/youtube"
 )
@@ -320,6 +321,10 @@ func main() {
 	podcastClient := podcast.NewClient()
 	fmt.Println("✅ Podcast client initialized successfully!")
 
+	// Radiko クライアントの初期化
+	radikoClient := radiko.NewClient("")
+	fmt.Println("✅ Radiko client initialized successfully!")
+
 	// Firebase Auth の初期化
 	firebaseAuth, err := auth.NewFirebaseAuth(context.Background())
 	if err != nil {
@@ -348,6 +353,10 @@ func main() {
 	// ★ここがポイント: DB接続を使って sqlc の Queries を作成
 	queries := db.New(pool)
 
+	// YouTube API Quota Tracker の初期化
+	quotaTracker := youtube.NewQuotaTracker(queries, 10000)
+	fmt.Println("✅ YouTube API Quota Tracker initialized!")
+
 	// サーバーに渡す
 	server := &TimelineServer{
 		queries:      queries,
@@ -356,7 +365,7 @@ func main() {
 	}
 
 	path, handler := pixicastv1connect.NewTimelineServiceHandler(server)
-	
+
 	// CORSミドルウェアを追加
 	corsHandler := func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -364,19 +373,22 @@ func main() {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Authorization")
 			w.Header().Set("Access-Control-Expose-Headers", "Connect-Protocol-Version, Connect-Timeout-Ms")
-			
+
 			// プリフライトリクエストに対応
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			
+
 			h.ServeHTTP(w, r)
 		})
 	}
-	
+
 	// Subscription ハンドラを作成
-	subscriptionHandler := handlers.NewSubscriptionHandler(queries, youtubeClient, twitchClient, podcastClient, firebaseAuth)
+	subscriptionHandler := handlers.NewSubscriptionHandler(queries, youtubeClient, twitchClient, podcastClient, radikoClient, firebaseAuth)
+
+	// Search ハンドラを作成
+	searchHandler := handlers.NewSearchHandler(queries, youtubeClient, twitchClient, podcastClient, firebaseAuth, quotaTracker)
 	
 	mux := http.NewServeMux()
 	mux.Handle(path, corsHandler(handler))
@@ -426,6 +438,44 @@ func main() {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 	
+	// GET /v1/channels/search - チャンネル検索
+	mux.HandleFunc("/v1/channels/search", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method == "GET" {
+			searchHandler.SearchChannels(w, r)
+			return
+		}
+
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+
+	// GET /v1/channels/popular - 人気チャンネル
+	mux.HandleFunc("/v1/channels/popular", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method == "GET" {
+			searchHandler.PopularChannels(w, r)
+			return
+		}
+
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+
 	// DELETE /v1/subscriptions/{channelId}
 	// POST /v1/subscriptions/{channelId}/favorite
 	mux.HandleFunc("/v1/subscriptions/", func(w http.ResponseWriter, r *http.Request) {

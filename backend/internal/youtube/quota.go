@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/kinchoKayaba/pixicast/backend/db"
 )
 
@@ -36,17 +37,19 @@ func NewQuotaTracker(queries *db.Queries, dailyLimit int32) *QuotaTracker {
 
 	// 起動時に当日の使用量を読み込み
 	ctx := context.Background()
-	today := time.Now().Format("2006-01-02")
+	now := time.Now()
+	todayDate := pgtype.Date{Time: now, Valid: true}
 	usage, err := queries.GetDailyAPIQuotaUsage(ctx, db.GetDailyAPIQuotaUsageParams{
-		Date:       today,
+		Date:       todayDate,
 		PlatformID: "youtube",
 	})
 	if err == nil {
-		tracker.dailyUsed.Store(int32(usage.TotalQuotaUsed))
+		totalUsed := toInt32(usage.TotalQuotaUsed)
+		tracker.dailyUsed.Store(totalUsed)
 		log.Printf("📊 YouTube API Quota today: %d/%d (%.1f%%)",
-			usage.TotalQuotaUsed,
+			totalUsed,
 			dailyLimit,
-			float64(usage.TotalQuotaUsed)/float64(dailyLimit)*100,
+			float64(totalUsed)/float64(dailyLimit)*100,
 		)
 	}
 
@@ -67,8 +70,9 @@ func (qt *QuotaTracker) RecordUsage(ctx context.Context, endpoint string, cost i
 	newUsed := qt.dailyUsed.Add(int32(cost))
 
 	// データベースに記録
+	todayDate := pgtype.Date{Time: time.Now(), Valid: true}
 	err := qt.queries.RecordAPIQuotaUsage(ctx, db.RecordAPIQuotaUsageParams{
-		Date:       today,
+		Date:       todayDate,
 		PlatformID: "youtube",
 		Endpoint:   endpoint,
 		QuotaCost:  int32(cost),
@@ -116,4 +120,18 @@ func (qt *QuotaTracker) GetUsagePercent() float64 {
 func (qt *QuotaTracker) CanUse(cost int) bool {
 	used := qt.dailyUsed.Load()
 	return used+int32(cost) <= qt.dailyLimit
+}
+
+// toInt32 はinterface{}からint32に変換
+func toInt32(v interface{}) int32 {
+	switch n := v.(type) {
+	case int64:
+		return int32(n)
+	case int32:
+		return n
+	case float64:
+		return int32(n)
+	default:
+		return 0
+	}
 }
