@@ -17,6 +17,7 @@ interface AuthContextType {
   loading: boolean;
   isAnonymous: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInAnonymously: () => Promise<void>;
   signOut: () => Promise<void>;
   getIdToken: () => Promise<string | null>;
 }
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isAnonymous: false,
   signInWithGoogle: async () => {},
+  signInAnonymously: async () => {},
   signOut: async () => {},
   getIdToken: async () => null,
 });
@@ -108,6 +110,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const doSignInAnonymously = async () => {
+    try {
+      const result = await signInAnonymously(auth);
+      console.log("✅ 匿名ログイン成功:", result.user.uid);
+      setUser(result.user);
+    } catch (error) {
+      console.error("❌ 匿名ログインエラー:", error);
+      throw error;
+    }
+  };
+
   const getIdToken = async (): Promise<string | null> => {
     console.log("🎫 getIdToken called, user:", user?.uid || "null");
     if (!user) {
@@ -131,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         isAnonymous: user?.isAnonymous ?? false,
         signInWithGoogle,
+        signInAnonymously: doSignInAnonymously,
         signOut,
         getIdToken,
       }}
